@@ -8,6 +8,10 @@ services:
     volumes:
       - ./nitter.conf:/src/nitter.conf:Z,ro
       - ./sessions.jsonl:/src/sessions.jsonl:Z,ro # Run get_sessions.py to get the credentials
+    # Agent API (REST + MCP): set `enabled = true` under [Api] in nitter.conf, then
+    # put the token(s) in the environment or an .env file: NITTER_API_TOKENS="me:<secret>"
+    # environment:
+    #   NITTER_API_TOKENS: ${NITTER_API_TOKENS}
     depends_on:
       - nitter-redis
     restart: unless-stopped
