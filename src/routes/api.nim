@@ -2,7 +2,7 @@
 ## Agent API: REST (/api/v1/*) and MCP (/mcp). Read-only. Disabled unless
 ## [Api] enabled = true. All behaviour lives in src/tools; this file only maps
 ## HTTP onto it.
-import asyncdispatch, json, strutils, tables, httpcore
+import asyncdispatch, json, strutils, tables, httpcore, uri
 
 import jester
 
@@ -41,9 +41,13 @@ proc authorize*(cfg: Config; req: Request): string =
   authenticate(cfg, req.headers.getOrDefault("Authorization"),
                req.headers.getOrDefault("X-API-Key"))
 
-proc paramsToJson*(p: Table[string, string]): JsonNode =
+proc paramsToJson*(p: Table[string, string]; pathKeys: openArray[string] = []): JsonNode =
+  ## Query-string values are already decoded by Jester, path captures are not.
+  ## Decode only the latter (and keep '+' literal) so that e.g.
+  ## /tweets/https%3A%2F%2Fx.com%2Fjack%2Fstatus%2F20 works.
   result = newJObject()
-  for k, v in p: result[k] = % v
+  for k, v in p:
+    result[k] = % (if k in pathKeys: decodeUrl(v, decodePlus = false) else: v)
 
 proc serveTool*(cfg: Config; req: Request; name: string; args: JsonNode): Future[Reply] {.async.} =
   ## Never raises.
@@ -152,23 +156,23 @@ proc createApiRouter*(cfg: Config) =
 
     get "/api/v1/users/@username":
       cond cfg.apiEnabled
-      send await serveTool(cfg, request, "get_user", paramsToJson(params(request)))
+      send await serveTool(cfg, request, "get_user", paramsToJson(params(request), ["username"]))
 
     get "/api/v1/users/@username/tweets":
       cond cfg.apiEnabled
-      send await serveTool(cfg, request, "get_user_timeline", paramsToJson(params(request)))
+      send await serveTool(cfg, request, "get_user_timeline", paramsToJson(params(request), ["username"]))
 
     get "/api/v1/users/@username/connections":
       cond cfg.apiEnabled
-      send await serveTool(cfg, request, "get_user_connections", paramsToJson(params(request)))
+      send await serveTool(cfg, request, "get_user_connections", paramsToJson(params(request), ["username"]))
 
     get "/api/v1/tweets/@tweet":
       cond cfg.apiEnabled
-      send await serveTool(cfg, request, "get_tweet", paramsToJson(params(request)))
+      send await serveTool(cfg, request, "get_tweet", paramsToJson(params(request), ["tweet"]))
 
     get "/api/v1/tweets/@tweet/thread":
       cond cfg.apiEnabled
-      send await serveTool(cfg, request, "get_thread", paramsToJson(params(request)))
+      send await serveTool(cfg, request, "get_thread", paramsToJson(params(request), ["tweet"]))
 
     get "/api/v1/search/tweets":
       cond cfg.apiEnabled
