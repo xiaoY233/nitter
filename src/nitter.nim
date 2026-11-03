@@ -10,7 +10,7 @@ import types, config, prefs, formatters, redis_cache, http_pool, auth, apiutils
 import views/[general, about]
 import routes/[
   preferences, timeline, status, media, search, rss, list, community, debug,
-  unsupported, embed, resolver, broadcast, space, article, router_utils]
+  unsupported, embed, resolver, broadcast, space, article, router_utils, api]
 
 proc validFormBody(body: string): bool =
   ## Mirrors the grammar of jester/private/utils.parseUrlQuery: key=value pairs
@@ -56,6 +56,19 @@ setMaxHttpConns(cfg.httpMaxConns)
 setHttpProxy(cfg.proxy, cfg.proxyAuth)
 setApiProxy(cfg.apiProxy)
 setDisableTid(cfg.disableTid)
+if cfg.apiEnabled:
+  if cfg.apiTokens.len == 0 and not cfg.apiAllowAnonymous:
+    stderr.write "ERROR: [Api] enabled = true but no tokens are configured. " &
+      "Set [Api] tokens (or NITTER_API_TOKENS), or allowAnonymous = true.\n"
+    stderr.flushFile
+    quit(1)
+  if cfg.apiAllowAnonymous:
+    stderr.write "WARNING: [Api] allowAnonymous = true: anyone who can reach this " &
+      "port can use your upstream sessions.\n"
+    stderr.flushFile
+  stdout.write "Agent API enabled at /api/v1" &
+    (if cfg.apiMcpEnabled: " and /mcp" else: "") & "\n"
+  stdout.flushFile
 setMaxConcurrentReqs(cfg.maxConcurrentReqs)
 setMaxRetries(cfg.maxRetries)
 setRetryDelayMs(cfg.retryDelayMs)
@@ -65,6 +78,7 @@ waitFor initRedisPool(cfg)
 stdout.write &"Connected to Redis at {cfg.redisHost}:{cfg.redisPort}\n"
 stdout.flushFile
 
+createApiRouter(cfg)
 createArticleRouter(cfg)
 createUnsupportedRouter(cfg)
 createResolverRouter(cfg)
@@ -145,6 +159,7 @@ routes:
     resp Http429, showError(
       &"Instance has no auth tokens, or is fully rate limited.<br>Use {link} or try again later.", cfg)
 
+  extend api, ""
   extend articleRoute, ""
   extend rss, ""
   extend status, ""
