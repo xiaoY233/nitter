@@ -22,6 +22,7 @@ Inspired by the [Invidious](https://github.com/iv-org/invidious) project.
 - Lightweight (for [@nim_lang](https://nitter.net/nim_lang), 60KB vs 784KB from twitter.com)
 - RSS feeds (instance-specific, often disabled due to abuse)
 - Themes
+- Optional read-only REST and MCP API for AI agents, with ready-made agent skills (off by default, see [docs/agent-api.md](docs/agent-api.md))
 - Mobile support (responsive design)
 - AGPLv3 licensed, no proprietary instances permitted
 
