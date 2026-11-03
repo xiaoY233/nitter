@@ -59,7 +59,8 @@ proc buildTools(): seq[ToolDef] =
       description: "Fetch a tweet together with its conversation: earlier tweets it replies " &
         "to (ancestors), the author's own continuation, and optionally replies from others " &
         "grouped by thread. Use it to read or summarise a whole thread or discussion. " &
-        "Replies are paged: pass next_cursor to continue." & untrustedNote,
+        "Replies are paged: pass next_cursor to continue; replies_omitted counts " &
+        "threads cut by max_replies. A null stats value means 'not reported', not zero." & untrustedNote,
       schema: objectSchema({
         "tweet": tweetRef,
         "include_replies": boolProp("Include replies from other users.", true),
@@ -76,7 +77,7 @@ proc buildTools(): seq[ToolDef] =
         "\"exact phrase\", OR, -exclude, #hashtag, @mention, lang:en, url:domain.com, " &
         "filter:links. Use `from` for specific authors, since/until (YYYY-MM-DD) for a " &
         "date range, min_likes for popularity. mode=latest is chronological (default), " &
-        "top is by relevance. To read one account's feed without a keyword prefer " &
+        "top is by relevance. Reposts are excluded unless include_retweets=true. To read one account's feed without a keyword prefer " &
         "get_user_timeline." & untrustedNote,
       schema: objectSchema({
         "query": strProp("Search text / operators. May be empty when `from` is given.", 500),
@@ -96,8 +97,9 @@ proc buildTools(): seq[ToolDef] =
 
     ToolDef(
       name: "search_users", title: "Search users", rest: "/search/users", ttl: 300,
-      description: "Find accounts by name, handle or topic keywords. Returns profiles; " &
-        "use get_user_timeline afterwards to read an account's tweets." & untrustedNote,
+      description: "Find accounts by name, handle or topic keywords. Returns profiles WITHOUT " &
+        "follower/tweet counts (they are null); call get_user for those, or " &
+        "get_user_timeline to read an account's tweets." & untrustedNote,
       schema: objectSchema({
         "query": strProp("Name, handle or keywords.", 200),
         "cursor": cursor}, ["query"]),

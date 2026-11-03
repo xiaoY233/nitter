@@ -70,6 +70,27 @@ Clients that only speak stdio use the bridge in `clients/mcp-stdio` (Node >= 18,
     "env": { "NITTER_BASE_URL": "http://nitter.lan:8080", "NITTER_API_TOKEN": "..." } } } }
 ```
 
+## Data notes
+
+Things that look like bugs but come from the upstream data:
+
+- **`stats` fields can be `null`.** `null` means *X did not report it*, not zero.
+  - `views` is only reported for newer tweets; older ones return `null`.
+  - User search (`search_users`) returns profiles without counters, so every
+    `stats` value is `null` there. Call `get_user` when counts matter.
+- **Empty `bio`** is real for accounts that have none (for example `@nim_lang`).
+- **`search_tweets` with `from=` and reposts.** `include_retweets=false` (the
+  default) removes tweets the account merely reposted. Pass `true` to see them:
+  they come back as the original tweet with `retweeted_by` set. `get_user_timeline`
+  always includes reposts, marked the same way.
+- **`get_thread` pages replies.** `max_replies` caps how many reply tweets are
+  returned; `replies_omitted` says how many reply threads of this page were left
+  out, and `next_cursor` continues with the following page. Raise `max_replies`
+  to see the omitted ones.
+- **A full URL in the REST path** must be percent-encoded
+  (`/tweets/https%3A%2F%2Fx.com%2Fjack%2Fstatus%2F20`). `POST /api/v1/tools/get_tweet`
+  and MCP take the URL as a plain argument.
+
 ## Skills
 
 `skills/` holds agent skills (research, thread digest, account brief) that
