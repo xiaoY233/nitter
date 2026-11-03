@@ -280,3 +280,21 @@ suite "pagination (fake upstream)":
     let tl = pageOf(@[10_000_000'i64, 9_000_000], "ignored")
     check nextSearchCursor(tl, q) == "maxid:7000000"
     check nextSearchCursor(tl, Query(kind: QueryKind.tweets)) == "ignored"
+
+suite "retweet filtering in search":
+  proc tw(id: int64; rt = false): Tweet =
+    result = Tweet(id: id, available: true, user: User(username: "u"))
+    if rt: result.retweet = some Tweet(id: id + 1000, available: true)
+  test "native retweets are dropped unless requested":
+    let f: TimelineFetcher = proc (c: string): Future[Timeline] {.async.} =
+      return Timeline(content: @[@[tw(1), tw(2, rt = true), tw(3)]], bottom: "")
+    check waitFor(collect(f, "", 10, 1, Query(), false, dropRetweets = true)).tweets.mapIt(it.id) == @[1'i64, 3]
+    check waitFor(collect(f, "", 10, 1, Query(), false)).tweets.len == 3
+  test "a page of only retweets does not end the listing":
+    var calls = 0
+    let f: TimelineFetcher = proc (c: string): Future[Timeline] {.async.} =
+      inc calls
+      if c == "": return Timeline(content: @[@[tw(1, rt = true), tw(2, rt = true)]], bottom: "p2")
+      return Timeline(content: @[@[tw(3)]], bottom: "")
+    let r = waitFor collect(f, "", 1, 5, Query(), false, dropRetweets = true)
+    check r.tweets.mapIt(it.id) == @[3'i64] and calls == 2

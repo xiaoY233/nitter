@@ -48,22 +48,30 @@ proc nextSearchCursor*(tl: Timeline; q: Query): string =
   tl.bottom
 
 proc collect*(fetch: TimelineFetcher; cursor: string; limit, maxPages: int;
-             q: Query; useMaxId: bool): Future[tuple[tweets: seq[Tweet], next: string, more: bool]] {.async.} =
+             q: Query; useMaxId: bool; dropRetweets = false):
+    Future[tuple[tweets: seq[Tweet], next: string, more: bool]] {.async.} =
   ## Fetches whole pages until at least `limit` tweets were collected.
+  ## dropRetweets: X's search keeps returning native retweets for `from:` queries
+  ## even when `include:nativeretweets` is absent, so the filter is applied here.
   var cur = cursor
   var seen = initHashSet[int64]()
   for i in 0 ..< max(maxPages, 1):
     let tl = await fetch(cur)
     var added = 0
+    var skipped = 0
     for thread in tl.content:
       for t in thread:
         if t.isNil or t.id == 0 or t.isAd or t.id in seen: continue
         seen.incl t.id
+        if dropRetweets and t.retweet.isSome:
+          inc skipped
+          continue
         result.tweets.add t
         inc added
     let nxt = if useMaxId: nextSearchCursor(tl, q) else: tl.bottom
     result.next = nxt
-    result.more = added > 0 and nxt.len > 0 and nxt != cur
+    # A page that held only retweets still means "keep going".
+    result.more = added + skipped > 0 and nxt.len > 0 and nxt != cur
     if not result.more or result.tweets.len >= limit: break
     cur = nxt
   if not result.more: result.next = ""
@@ -228,7 +236,8 @@ proc searchTweetsTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async
     q.excludes = @["nativeretweets"]
 
   let fetcher = proc (c: string): Future[Timeline] = getGraphTweetSearch(q, c)
-  let r = await collect(fetcher, cursor, limit, ctx.cfg.apiMaxPages, q, true)
+  let r = await collect(fetcher, cursor, limit, ctx.cfg.apiMaxPages, q, true,
+                        dropRetweets = not args{"include_retweets"}.getBool)
   let items = tweetsDto(r.tweets, ctx.cfg)
   var d = page(items, r.next, r.more)
   d["query"] = % genQueryParam(q)
