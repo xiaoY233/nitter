@@ -56,6 +56,18 @@ proc tweetUrl*(username: string; id: int64): string =
 
 # ------------------------------------------------------------------- users
 
+proc userStats(u: User): JsonNode =
+  ## Search results come from a parser that only knows the legacy profile shape
+  ## and leaves every counter at zero. A real account always has at least one
+  ## of these non-zero or at least a join date, so "all zero" means "unknown":
+  ## report null rather than a confident, wrong 0.
+  let known = u.followers != 0 or u.following != 0 or u.tweets != 0 or
+              u.likes != 0 or u.media != 0
+  if not known:
+    return %*{"followers": nil, "following": nil, "tweets": nil, "likes": nil, "media": nil}
+  %*{"followers": u.followers, "following": u.following,
+     "tweets": u.tweets, "likes": u.likes, "media": u.media}
+
 proc userDto*(u: User; cfg: Config): JsonNode =
   result = %*{
     "id": u.id,
@@ -70,8 +82,7 @@ proc userDto*(u: User; cfg: Config): JsonNode =
                  else: % toLowerAscii($u.verifiedType)),
     "protected": u.protected,
     "joined": iso(u.joinDate),
-    "stats": {"followers": u.followers, "following": u.following,
-              "tweets": u.tweets, "likes": u.likes, "media": u.media}
+    "stats": userStats(u)
   }
   if u.banner.len > 0:
     result["banner"] = % picUrl(cfg, u.banner)
@@ -135,8 +146,11 @@ proc tweetDto*(t: Tweet; cfg: Config; depth = 0): JsonNode =
   result["text"] = % plainText(t.text)
   let at = iso(t.time)
   if at.len > 0: result["created_at"] = % at
+  # X only reports view counts for newer tweets; older ones come back as 0.
+  # A tweet with likes but zero views is "unknown", not "nobody saw it".
   result["stats"] = %*{"replies": t.stats.replies, "reposts": t.stats.retweets,
-                       "likes": t.stats.likes, "views": t.stats.views}
+                       "likes": t.stats.likes,
+                       "views": (if t.stats.views > 0: % t.stats.views else: newJNull())}
   if t.threadId != 0: result["conversation_id"] = % $t.threadId
   if t.replyId != 0: result["in_reply_to_id"] = % $t.replyId
   if t.reply.len > 0: result["replying_to"] = % t.reply
@@ -238,9 +252,11 @@ proc tweetBody(t: JsonNode; quoted: bool): seq[string] =
 
   if not quoted:
     let s = t["stats"]
-    result.add "likes " & num(s["likes"].getInt) & " · reposts " &
-      num(s["reposts"].getInt) & " · replies " & num(s["replies"].getInt) &
-      " · views " & num(s["views"].getInt)
+    var line = "likes " & num(s["likes"].getInt) & " · reposts " &
+      num(s["reposts"].getInt) & " · replies " & num(s["replies"].getInt)
+    if s["views"].kind != JNull:
+      line &= " · views " & num(s["views"].getInt)
+    result.add line
 
 proc tweetMd*(t: JsonNode; indent = ""): string =
   if t.kind == JNull: return ""
@@ -273,8 +289,11 @@ proc userMd*(u: JsonNode): string =
   if u["joined"].getStr.len > 0: meta.add "joined: " & u["joined"].getStr[0..9]
   if meta.len > 0: lines.add meta.join(" · ")
   let s = u["stats"]
-  lines.add "followers " & num(s["followers"].getInt) & " · following " &
-    num(s["following"].getInt) & " · tweets " & num(s["tweets"].getInt)
+  if s["followers"].kind == JNull:
+    lines.add "counts: not available in this result (use get_user for follower counts)"
+  else:
+    lines.add "followers " & num(s["followers"].getInt) & " · following " &
+      num(s["following"].getInt) & " · tweets " & num(s["tweets"].getInt)
   lines.add "url: " & u["url"].getStr & " · id: " & u["id"].getStr
   if u.hasKey("pinned_tweet_id"): lines.add "pinned_tweet_id: " & u["pinned_tweet_id"].getStr
   if u.hasKey("about"):

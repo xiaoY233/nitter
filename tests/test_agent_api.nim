@@ -147,6 +147,23 @@ suite "dto":
   test "markdown stats are compact":
     let md = tweetMd(tweetDto(mk(1, "x"), cfg))
     check "likes 15.0K" in md and "views 2.5M" in md
+  test "zero views is unknown, not zero":
+    let d = tweetDto(mk(1, "old"), cfg)
+    check d["stats"]["views"].getInt == 2_500_000
+    var old = mk(2, "old")
+    old.stats.views = 0
+    let o = tweetDto(old, cfg)
+    check o["stats"]["views"].kind == JNull
+    check "views" notin tweetMd(o)
+    check "likes 15.0K" in tweetMd(o)
+  test "all-zero user counters are unknown (search results), real ones kept":
+    let d = userDto(user, cfg)
+    check d["stats"]["followers"].getInt == 6_000_000
+    let blank = User(id: "9", username: "x", fullname: "X")
+    let b = userDto(blank, cfg)
+    check b["stats"]["followers"].kind == JNull and b["stats"]["tweets"].kind == JNull
+    check "not available" in userMd(b) and "followers 0" notin userMd(b)
+    check "followers 6.0M" in userMd(d)
   test "media urls are proxied only when configured":
     var t = mk(1, "x")
     t.media = @[Media(kind: photoMedia, photo: Photo(url: "media/a.jpg"))]
