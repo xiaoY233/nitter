@@ -1,8 +1,9 @@
 *.png
 *.md
-!skills/**/*.md
-!docs/*.md
 LICENSE
 docker-compose.yml
 Dockerfile
 tests/
+skills/
+clients/
+docs/
