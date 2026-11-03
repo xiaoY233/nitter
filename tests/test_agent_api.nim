@@ -281,6 +281,22 @@ suite "pagination (fake upstream)":
     check nextSearchCursor(tl, q) == "maxid:7000000"
     check nextSearchCursor(tl, Query(kind: QueryKind.tweets)) == "ignored"
 
+suite "thread replies":
+  let cfg = Config(hostname: "nitter.local")
+  proc tw(id: int64): Tweet = Tweet(id: id, available: true, user: User(username: "u"))
+  proc chain(ids: varargs[int64]): Chain = Chain(content: ids.mapIt(tw(it)))
+
+  test "keeps whole threads up to the cap and reports how many were left out":
+    let (kept, dropped) = limitReplies(@[chain(1, 2), chain(3), chain(4, 5, 6), chain(7)], cfg, 3)
+    # [1,2] and [3] fit exactly; [4,5,6] and [7] would exceed the cap of 3
+    check kept.len == 2 and dropped == 2
+  test "a first thread larger than the cap is still returned":
+    let (kept, dropped) = limitReplies(@[chain(1, 2, 3, 4), chain(5)], cfg, 2)
+    check kept.len == 1 and kept[0].len == 4 and dropped == 1
+  test "nothing dropped when everything fits; empty chains ignored":
+    let (kept, dropped) = limitReplies(@[chain(1), Chain(), chain(2)], cfg, 10)
+    check kept.len == 2 and dropped == 0
+
 suite "retweet filtering in search":
   proc tw(id: int64; rt = false): Tweet =
     result = Tweet(id: id, available: true, user: User(username: "u"))

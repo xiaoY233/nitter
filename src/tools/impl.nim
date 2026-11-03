@@ -147,6 +147,22 @@ proc getTweetTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} =
   let d = tweetDto(conv.tweet, ctx.cfg)
   done(d, tweetMd(d))
 
+proc limitReplies*(chains: seq[Chain]; cfg: Config; maxReplies: int):
+    tuple[kept: JsonNode, dropped: int] =
+  ## Keeps whole reply threads until `maxReplies` tweets are reached (the first
+  ## thread is always kept so a long one cannot yield an empty result) and
+  ## counts the threads left out.
+  result.kept = newJArray()
+  var count = 0
+  for chain in chains:
+    let tweets = tweetsDto(chain.content, cfg)
+    if tweets.len == 0: continue
+    if count + tweets.len > maxReplies and count > 0:
+      inc result.dropped
+      continue
+    count += tweets.len
+    result.kept.add tweets
+
 proc getThreadTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} =
   let
     id = parseTweetRef(args{"tweet"}.getStr)
@@ -163,26 +179,21 @@ proc getThreadTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} 
   }
 
   var replyChains = newJArray()
-  var truncated = false
+  var dropped = 0
   var next = ""
   var more = false
   if withReplies:
-    var count = 0
-    for chain in conv.replies.content:
-      let tweets = tweetsDto(chain.content, cfg)
-      if tweets.len == 0: continue
-      if count + tweets.len > maxReplies and count > 0:
-        truncated = true
-        break
-      count += tweets.len
-      replyChains.add tweets
-    if not truncated:
-      next = conv.replies.bottom
-      more = conv.replies.content.len > 0 and next.len > 0
+    (replyChains, dropped) = limitReplies(conv.replies.content, cfg, maxReplies)
+    # The upstream cursor continues *after* the whole page we fetched, so threads
+    # dropped here cannot be reached with it. Say so instead of hiding it; the
+    # agent can raise max_replies to see them.
+    next = conv.replies.bottom
+    more = conv.replies.content.len > 0 and next.len > 0
   d["replies"] = replyChains
   d["next_cursor"] = if more: % next else: newJNull()
   d["has_more"] = % more
-  if truncated: d["replies_truncated"] = % true
+  if dropped > 0:
+    d["replies_omitted"] = % dropped
 
   var parts: seq[string]
   if d["ancestors"].len > 0:
@@ -202,7 +213,10 @@ proc getThreadTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} 
       inc n
       parts.add "### Reply thread " & $n
       for t in chain: parts.add tweetMd(t, "")
-  let note = if truncated: "replies truncated by max_replies; raise it or lower detail" else: ""
+  let note = if dropped > 0:
+      "omitted " & $dropped & " more reply thread(s) on this page because of max_replies; " &
+      "raise max_replies to see them (next_cursor continues with the following page)"
+    else: ""
   done(d, parts.join("\n\n") & "\n\n" & footer(next, more, (if note.len > 0: "note: " & note else: "")))
 
 proc searchTweetsTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} =
