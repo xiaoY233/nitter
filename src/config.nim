@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 import parsecfg except Config
-import types, strutils
+import os, strutils, sequtils
+import types
 
 proc get*[T](config: parseCfg.Config; section, key: string; default: T): T =
   let val = config.getSectionValue(section, key)
@@ -9,6 +10,17 @@ proc get*[T](config: parseCfg.Config; section, key: string; default: T): T =
   when T is int: parseInt(val)
   elif T is bool: parseBool(val)
   elif T is string: val
+
+proc parseApiTokens*(raw: string): seq[ApiToken] =
+  ## "name:secret,other:secret2" (a bare "secret" is named "default")
+  for part in raw.split(','):
+    let item = part.strip()
+    if item.len == 0: continue
+    let idx = item.find(':')
+    if idx > 0:
+      result.add ApiToken(name: item[0 ..< idx].strip(), secret: item[idx + 1 .. ^1].strip())
+    else:
+      result.add ApiToken(name: "default", secret: item)
 
 proc getConfig*(path: string): (Config, parseCfg.Config) =
   var cfg = loadConfig(path)
@@ -52,7 +64,23 @@ proc getConfig*(path: string): (Config, parseCfg.Config) =
     disableTid: cfg.get("Config", "disableTid", false),
     maxConcurrentReqs: cfg.get("Config", "maxConcurrentReqs", 2),
     maxRetries: cfg.get("Config", "maxRetries", 1),
-    retryDelayMs: cfg.get("Config", "retryDelayMs", 150)
+    retryDelayMs: cfg.get("Config", "retryDelayMs", 150),
+
+    # Agent API
+    apiEnabled: cfg.get("Api", "enabled", false),
+    apiMcpEnabled: cfg.get("Api", "enableMcp", true),
+    apiTokens: parseApiTokens(
+      cfg.get("Api", "tokens", "") & "," & getEnv("NITTER_API_TOKENS")),
+    apiAllowAnonymous: cfg.get("Api", "allowAnonymous", false),
+    apiRpm: cfg.get("Api", "requestsPerMinute", 120),
+    apiMaxConcurrent: cfg.get("Api", "maxConcurrent", 4),
+    apiMaxPages: cfg.get("Api", "maxPages", 5),
+    apiOrigins: cfg.get("Api", "allowedOrigins", "").split(',').mapIt(it.strip()).filterIt(it.len > 0),
+    apiMediaProxy: cfg.get("Api", "proxyMedia", false),
+    apiCacheUser: cfg.get("Api", "cacheUserSeconds", 900),
+    apiCacheTimeline: cfg.get("Api", "cacheTimelineSeconds", 120),
+    apiCacheTweet: cfg.get("Api", "cacheTweetSeconds", 300),
+    apiCacheSearch: cfg.get("Api", "cacheSearchSeconds", 60)
   )
 
   return (conf, cfg)

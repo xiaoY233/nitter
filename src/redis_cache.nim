@@ -258,3 +258,13 @@ proc getCachedRss*(key: string): Future[Rss] {.async.} =
           except: echo "Decompressing RSS failed: ", feed
     else:
       result.cursor.setLen 0
+
+# Generic string cache used by the agent API (src/tools). Returns "" on a miss.
+proc getApiCache*(key: string): Future[string] {.async.} =
+  let value = await get(key)
+  if value != redisNil:
+    result = value
+
+proc setApiCache*(key: string; ttl: int; data: string) {.async.} =
+  if ttl > 0:
+    await setEx(key, ttl, data)

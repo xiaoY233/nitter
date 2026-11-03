@@ -417,6 +417,10 @@ type
     tweets*: Table[string, Tweet]
     users*: Table[string, User]
 
+  ApiToken* = object
+    name*: string
+    secret*: string
+
   Config* = ref object
     address*: string
     port*: int
@@ -443,6 +447,21 @@ type
     maxConcurrentReqs*: int
     maxRetries*: int
     retryDelayMs*: int
+
+    # Agent API (REST + MCP)
+    apiEnabled*: bool
+    apiMcpEnabled*: bool
+    apiTokens*: seq[ApiToken]
+    apiAllowAnonymous*: bool
+    apiRpm*: int
+    apiMaxConcurrent*: int
+    apiMaxPages*: int
+    apiOrigins*: seq[string]
+    apiMediaProxy*: bool
+    apiCacheUser*: int
+    apiCacheTimeline*: int
+    apiCacheTweet*: int
+    apiCacheSearch*: int
 
     rssCacheTime*: int
     listCacheTime*: int
