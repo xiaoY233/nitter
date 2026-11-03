@@ -49,6 +49,9 @@ jobs:
       - name: Build Project
         run: nimble build -Y
 
+      - name: Agent API unit tests
+        run: nim c -r --hints:off -o:/tmp/test_agent_api tests/test_agent_api.nim
+
       - name: Upload 2.2.x build artifact
         if: matrix.nim == '2.2.x'
         uses: actions/upload-artifact@v6
