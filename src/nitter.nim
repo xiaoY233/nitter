@@ -12,6 +12,19 @@ import routes/[
   preferences, timeline, status, media, search, rss, list, community, debug,
   unsupported, embed, resolver, broadcast, space, article, router_utils]
 
+proc validFormBody(body: string): bool =
+  ## Mirrors the grammar of jester/private/utils.parseUrlQuery: key=value pairs
+  ## separated by '&', every pair needing an '='.
+  var i = 0
+  if body.startsWith("?"): inc i
+  while i < body.len - 1:
+    let eq = body.find('=', i)
+    if eq < 0: return false
+    let amp = body.find('&', eq)
+    if amp < 0: break
+    i = amp + 1
+  true
+
 const instancesUrl = "https://github.com/zedeus/nitter/wiki/Instances"
 const issuesUrl = "https://github.com/zedeus/nitter/issues"
 
@@ -79,6 +92,13 @@ routes:
   before:
     # Reject malformed paths
     if request.path.len == 0 or request.path[0] != '/':
+      halt Http400
+
+    # Jester's params() crashes the whole process (IndexDefect) on a malformed
+    # urlencoded body, e.g. `curl -d '{}' <url>`. Refuse those up front.
+    if request.reqMethod == HttpPost and request.body.len > 0 and
+       request.headers.getOrDefault("Content-Type").startsWith("application/x-www-form-urlencoded") and
+       not validFormBody(request.body):
       halt Http400
 
     # skip all file URLs (except Twitter widget compatibility)
