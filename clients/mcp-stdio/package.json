@@ -1,0 +1,10 @@
+{
+  "name": "nitter-mcp",
+  "version": "1.0.0",
+  "description": "stdio bridge to the Nitter agent API MCP endpoint (Streamable HTTP)",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "bin": { "nitter-mcp": "./bridge.mjs" },
+  "files": ["bridge.mjs"],
+  "engines": { "node": ">=18" }
+}
