@@ -12,7 +12,24 @@ type
     count: int
     inflight: int
 
-var buckets = initTable[string, Bucket]()
+var
+  buckets = initTable[string, Bucket]()
+  lastPrune = 0'i64
+
+const pruneEverySeconds = 300
+
+proc pruneBuckets*(now: int64) =
+  ## Drops principals that have nothing in flight and whose window has expired,
+  ## so the table cannot grow without bound. Runs at most every 5 minutes.
+  if now - lastPrune < pruneEverySeconds: return
+  lastPrune = now
+  var stale: seq[string]
+  for k, b in buckets:
+    if b.inflight == 0 and now - b.windowStart >= 60:
+      stale.add k
+  for k in stale: buckets.del k
+
+proc bucketCount*(): int = buckets.len
 
 proc digest(s: string): string =
   $sha256.digest(s)
@@ -61,6 +78,7 @@ proc acquire*(cfg: Config; principal: string): int =
   ## concurrency slot. Returns remaining requests in the window.
   ## Every successful acquire must be paired with release().
   let now = getTime().toUnix
+  pruneBuckets(now)
   var b = buckets.getOrDefault(principal, Bucket(windowStart: now))
   if now - b.windowStart >= 60:
     b.windowStart = now

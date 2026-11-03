@@ -69,6 +69,17 @@ suite "auth and limits":
   test "token parsing":
     check parseApiTokens("a:b:c, d ,,e:f").mapIt((it.name, it.secret)) ==
       @[("a", "b:c"), ("default", "d"), ("e", "f")]
+  test "idle principals are pruned, busy ones are kept":
+    let cfg = mkCfg(rpm = 100, conc = 5)
+    discard acquire(cfg, "idle"); release("idle")
+    discard acquire(cfg, "busy")                 # left in flight on purpose
+    let before = bucketCount()
+    pruneBuckets(getTime().toUnix + 1000)        # far enough for windows and the 5 min throttle
+    check bucketCount() < before
+    check bucketCount() >= 1                     # "busy" survives
+    release("busy")
+    pruneBuckets(getTime().toUnix + 2000)
+    check bucketCount() == 0
   test "origin check":
     var cfg = mkCfg()
     checkOrigin(cfg, "", "nitter.local")
