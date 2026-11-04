@@ -52,10 +52,18 @@ body {
     --x_reply: var(--accent);
     --x_hover_bg: #EEF3F7;
     --x_blur_bg: rgba(255, 255, 255, 0.85);
+    --x_cloud_1: #1170B3;
+    --x_cloud_2: #0E7C5B;
+    --x_cloud_3: #B3541A;
+    --x_cloud_4: #C2185B;
+    --x_cloud_5: #6A4BC4;
+    --x_cloud_6: #2F7D8C;
+    --x_cloud_7: #536471;
 
     --radius: 1.3rem;
     --x_radius: calc(var(--radius) + 4px);
     --x_radius_sm: calc(var(--radius) - 2px);
+    --x_pill: 9999px;
 }
 
 /* without the script, the system setting alone decides */
@@ -88,6 +96,13 @@ body {
         --icon_text: #000000;
         --x_hover_bg: #0E1114;
         --x_blur_bg: rgba(0, 0, 0, 0.65);
+        --x_cloud_1: #4FB3F5;
+        --x_cloud_2: #34D399;
+        --x_cloud_3: #FFA45C;
+        --x_cloud_4: #F472B6;
+        --x_cloud_5: #A78BFA;
+        --x_cloud_6: #67D4E4;
+        --x_cloud_7: #8B9096;
     }
 }
 
@@ -120,6 +135,13 @@ html[data-x-scheme="dark"] body {
     --icon_text: #000000;
     --x_hover_bg: #0E1114;
     --x_blur_bg: rgba(0, 0, 0, 0.65);
+    --x_cloud_1: #4FB3F5;
+    --x_cloud_2: #34D399;
+    --x_cloud_3: #FFA45C;
+    --x_cloud_4: #F472B6;
+    --x_cloud_5: #A78BFA;
+    --x_cloud_6: #67D4E4;
+    --x_cloud_7: #8B9096;
 }
 @media (prefers-color-scheme: dark) {
     html[data-x-scheme="light"] body {
@@ -171,8 +193,16 @@ html[data-x-scheme="dark"] body {
         --x_reply: var(--accent);
         --x_hover_bg: #EEF3F7;
         --x_blur_bg: rgba(255, 255, 255, 0.85);
+        --x_cloud_1: #1170B3;
+        --x_cloud_2: #0E7C5B;
+        --x_cloud_3: #B3541A;
+        --x_cloud_4: #C2185B;
+        --x_cloud_5: #6A4BC4;
+        --x_cloud_6: #2F7D8C;
+        --x_cloud_7: #536471;
 
             --x_radius: calc(var(--radius) + 4px);
             --x_radius_sm: calc(var(--radius) - 2px);
+    --x_pill: 9999px;
     }
 }

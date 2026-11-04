@@ -12,7 +12,9 @@ export preferences
 proc findThemes*(dir: string): seq[string] =
   for kind, path in walkDir(dir / "css" / "themes"):
     let theme = path.splitFile.name
-    result.add theme.replace("_", " ").titleize
+    # the label is also the stored value (matched case-insensitively), so a
+    # brand spelling only has to be right here
+    result.add(if theme == "tiktok": "TikTok" else: theme.replace("_", " ").titleize)
   sort(result)
 
 proc createPrefRouter*(cfg: Config) =

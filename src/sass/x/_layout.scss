@@ -63,7 +63,7 @@ body.theme-x {
     gap: 12px;
     padding: 10px 12px;
     margin-bottom: 4px;
-    border-radius: 9999px;
+    border-radius: var(--x_pill, 9999px);
     color: var(--fg_color);
     font-size: 18px;
     font-weight: 700;
@@ -363,7 +363,7 @@ body.theme-x {
       box-sizing: border-box;
       padding: 0 14px 0 10px;
       border: 1px solid var(--border_grey);
-      border-radius: 9999px;
+      border-radius: var(--x_pill, 9999px);
       background: var(--bg_color);
       font-size: 14px;
       font-weight: 500;

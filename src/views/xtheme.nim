@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-## Page shell for the "X" theme: a left navigation rail, the content column and
-## a right-hand column with search. Only rendered when the theme is "X"; every
-## other theme keeps the original top bar (see renderMain in general.nim).
+## Page shell for the X layout: a left navigation rail, the content column and
+## a right-hand column with search. Rendered for the X theme and the themes
+## listed in xThemes; any other stylesheet keeps the original top bar (see
+## renderMain in general.nim).
 ## The icons here are original drawings, not assets of any other service.
 import strutils
 import karax/[karaxdsl, vdom]
@@ -37,8 +38,12 @@ const
   # a nod to a graph of linked posts
   brandSvg = """<svg class="x-brand-svg" viewBox="190 62 645 645" aria-hidden="true"><path fill="#FF6D70" d="M768.6,253c0.4,5.7,0.4,11.5,0.4,17.2c0,174.7-133,376-376,376c-74.9,0-144.4-21.7-202.9-59.3c10.6,1.2,20.9,1.6,31.9,1.6c61.8,0,118.7-20.9,164.1-56.5c-58.1-1.2-106.8-39.3-123.6-91.7c8.2,1.2,16.4,2,25,2c11.9,0,23.7-1.6,34.8-4.5c-60.6-12.3-106-65.5-106-129.7v-1.6c17.6,9.8,38.1,16,59.7,16.8c-35.6-23.7-58.9-64.2-58.9-110.1c0-24.5,6.5-47.1,18-66.7c65.1,80.2,162.8,132.6,272.5,138.3c-2-9.8-3.3-20-3.3-30.3c0-72.8,58.9-132.2,132.2-132.2c38.1,0,72.4,16,96.6,41.7c29.9-5.7,58.5-16.8,83.9-31.9c-9.8,30.7-30.7,56.5-58.1,72.8c26.6-2.9,52.4-10.2,76.1-20.5C816.9,210.9,794.4,234.2,768.6,253L768.6,253z"/></svg>"""
 
+const xThemes* = ["x", "vercel", "mono", "claude", "codex", "tiktok"]
+  ## themes that use the X layout: each is a stylesheet of colour and shape
+  ## variables in public/css/themes, the layout and components are shared
+
 func isTheme*(theme: string): bool =
-  theme.toLowerAscii == "x"
+  theme.toLowerAscii in xThemes
 
 proc navItem(href, label: string; active: bool; icon="", svg="", extra=""): VNode =
   var cls = if active: "x-nav-item active" else: "x-nav-item"

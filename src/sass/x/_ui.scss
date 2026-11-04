@@ -106,7 +106,7 @@
     margin-top: -9px;
     box-sizing: border-box;
     border: 0;
-    border-radius: 9999px;
+    border-radius: var(--x_pill, 9999px);
     background: var(--switch_off);
     transition: background-color 0.15s, box-shadow 0.15s;
     &:after {
@@ -162,7 +162,7 @@
   box-sizing: border-box;
   padding: 1px 8px;
   border: 0;
-  border-radius: 9999px;
+  border-radius: var(--x_pill, 9999px);
   background: color-mix(in srgb, var(--fg_color) 7%, var(--bg_color));
   color: var(--fg_color);
   font-size: 12px;
@@ -240,7 +240,7 @@
   box-sizing: border-box;
   height: 40px;
   padding: 0 14px;
-  border-radius: 9999px;
+  border-radius: var(--x_pill, 9999px);
   color: var(--fg_color);
   font-size: 14px;
   font-weight: 500;

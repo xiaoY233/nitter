@@ -65,11 +65,11 @@ proc renderHead*(prefs: Prefs; cfg: Config; req: Request; titleText=""; desc="";
   let opensearchUrl = getUrlPrefix(cfg) & "/opensearch"
 
   buildHtml(head):
-    link(rel="stylesheet", type="text/css", href="/css/style.css?v=162")
+    link(rel="stylesheet", type="text/css", href="/css/style.css?v=163")
     link(rel="stylesheet", type="text/css", href="/css/fontello.css?v=7")
 
     if theme.len > 0:
-      link(rel="stylesheet", type="text/css", href=(&"/css/themes/{theme}.css?v=7"))
+      link(rel="stylesheet", type="text/css", href=(&"/css/themes/{theme}.css?v=9"))
 
     link(rel="apple-touch-icon", sizes="180x180", href="/apple-touch-icon.png")
     link(rel="icon", type="image/png", sizes="32x32", href="/favicon-32x32.png")
@@ -97,7 +97,7 @@ proc renderHead*(prefs: Prefs; cfg: Config; req: Request; titleText=""; desc="";
       script(src="/js/infiniteScroll.js", `defer`="")
 
     if prefs.xEnhancements and isTheme(theme):
-      script(src="/js/xtheme.js?v=22", `defer`="")
+      script(src="/js/xtheme.js?v=23", `defer`="")
 
     title:
       if titleText.len > 0:
@@ -163,6 +163,10 @@ proc renderMain*(body: VNode; req: Request; cfg: Config; prefs=defaultPrefs;
     # lets theme-specific stylesheets scope their rules to one theme
     if theme.len > 0:
       bodyClass = (bodyClass & " theme-" & theme).strip()
+    # the shared X layout styles hang on theme-x; the theme's own class stays
+    # so a stylesheet can still single itself out
+    if isTheme(theme) and theme != "x":
+      bodyClass = bodyClass & " theme-x"
     body(class=bodyClass):
       if isTheme(theme):
         renderXLayout(cfg, prefs, req.path, rss, twitterLink,

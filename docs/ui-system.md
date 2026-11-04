@@ -28,6 +28,29 @@ by the page stylesheets, so a value lives in one place.
 | `--switch_off` | `#CBD8E0` / `#3A3D42` | switch track, off |
 
 Type: system font stack (the reference uses Open Sans, which is not bundled).
+
+## Themes
+
+The values above are X's. Every theme in `public/css/themes/` defines the same
+variables for a light and a dark mode, so a component never mentions a colour:
+
+| Variable | Meaning |
+| --- | --- |
+| `--bg_color`, `--fg_color`, `--fg_faded` | page, text, secondary text |
+| `--bg_elements`, `--bg_overlays` | card, popover |
+| `--border_grey`, `--switch_off` | borders, switch track |
+| `--primary`, `--on_primary` | fills and the text on them |
+| `--accent`, `--accent_soft`, `--ring` | links and thin lines, hover tint, focus ring |
+| `--x_like`, `--x_repost`, `--error_red` | hover colours of the counters, errors |
+| `--radius`, `--x_radius`, `--x_radius_sm`, `--x_pill` | corners: base, cards, controls, tabs and badges |
+| `--x_font` | typeface (optional; the system stack is the fallback) |
+| `--x_cloud_1` … `--x_cloud_7` | word-cloud colours (optional) |
+
+`tools/themes/gen.py` writes this file from a tweakcn theme: `background`,
+`foreground`, `card`, `popover`, `muted`, `muted-foreground`, `border`, `input`,
+`primary`, `primary-foreground`, `destructive`, `ring`, the chart colours and
+`radius`. The tabs and badges are pills (`9999px`) when the radius is 16px or
+more, otherwise they follow it, so a square theme gets square tabs.
 Base 14px / 20px. Weights: 400 body, 500 controls and labels, 600 titles.
 Sizes: 12 badge, 14 body and controls, 16 card title and rail brand text, 24
 home card title, 30 page title.

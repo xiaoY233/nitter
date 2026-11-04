@@ -104,7 +104,11 @@
     document.documentElement.style.colorScheme = mode;
     // the browser bar on phones
     const bar = document.querySelector('meta[name="theme-color"]');
-    if (bar) bar.content = mode === "dark" ? "#000000" : "#FFFFFF";
+    if (bar) {
+      // the page's own background, so every theme gets a matching bar
+      const bg = getComputedStyle(document.body).backgroundColor;
+      bar.content = bg && bg !== "rgba(0, 0, 0, 0)" ? bg : (mode === "dark" ? "#000000" : "#FFFFFF");
+    }
     const forced = document.documentElement.dataset.xScheme;
     const choice = forced === "dark" || forced === "light" ? forced : "system";
     document.querySelectorAll(".x-menu-item[data-scheme]").forEach(b => {
@@ -210,8 +214,18 @@
   }
 
   // Palette for the words. Fixed order, so a word keeps its colour between
-  // visits; chosen to read on both the light and the dark card.
+  // visits. A theme may define --x_cloud_1 .. --x_cloud_7 (colours that read on
+  // its own background, one set per colour mode); without them, this list is
+  // used. It is chosen to read on both the light and the dark card.
   const CLOUD_COLORS = ["#1D9BF0", "#4FB3BF", "#00B87A", "#8BC34A", "#F7B928", "#FF7A00", "#E0245E", "#7856FF", "#5B8DEF", "#8B9096"];
+
+  // how many of the theme's --x_cloud_N variables exist (0 = use the list above)
+  function themeCloudSize() {
+    const cs = getComputedStyle(document.body);
+    let n = 0;
+    while (n < 7 && cs.getPropertyValue("--x_cloud_" + (n + 1)).trim()) n++;
+    return n;
+  }
 
   function hashWord(t) {
     let h = 0;
@@ -232,6 +246,7 @@
     const W = box.clientWidth, H = box.clientHeight;
     if (!W || !H) return;
     const family = getComputedStyle(box).fontFamily;
+    const themeN = themeCloudSize();
     const cv = document.createElement("canvas");
     const ctx = cv.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
@@ -344,7 +359,9 @@
       a.href = "/search?f=tweets&q=" + encodeURIComponent(e.t);
       a.textContent = e.t;
       a.title = e.n === 1 ? "1 search" : e.n + " searches";
-      const color = CLOUD_COLORS[h % CLOUD_COLORS.length];
+      const color = themeN
+        ? `var(--x_cloud_${h % themeN + 1}, var(--fg_faded))`
+        : CLOUD_COLORS[h % CLOUD_COLORS.length];
       a.style.cssText = `width:${m.tw}px;height:${m.th}px;line-height:${m.th}px;font-size:${size}px;` +
         `font-weight:${weight};color:${color};` +
         (vertical ? `left:${x}px;top:${y + m.h}px;` : `left:${x}px;top:${y}px;`);
