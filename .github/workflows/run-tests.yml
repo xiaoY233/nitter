@@ -37,6 +37,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
+      # the test binaries link against libpcre at run time
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpcre3 libsass-dev
+
       - name: Cache Nimble Dependencies
         id: cache-nimble
         uses: actions/cache@v5

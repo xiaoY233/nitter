@@ -36,6 +36,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # the test binaries link against libpcre at run time; compiling alone
+      # does not need it, so it went missing here at first
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpcre3 libsass-dev
+
       - name: Cache Nimble dependencies
         uses: actions/cache@v5
         with:
