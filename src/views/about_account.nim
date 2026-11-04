@@ -79,8 +79,8 @@ proc renderAboutAccount*(info: AccountInfo): VNode =
           span(class="about-account-at"): text "@"
           tdiv:
             span(class="about-account-label"):
-              text $info.usernameChanges & " username change"
-              if info.usernameChanges > 1: text "s"
+              text $info.usernameChanges & " username change" &
+                   (if info.usernameChanges > 1: "s" else: "")
             if info.lastUsernameChange.year > 0:
               span(class="about-account-value"):
                 text "Last on " & info.lastUsernameChange.format("MMMM YYYY")
