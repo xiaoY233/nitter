@@ -32,6 +32,15 @@ proc createPrefRouter*(cfg: Config) =
       genUpdatePrefs()
       redirect(refPath())
 
+    post "/setlang":
+      # one button that flips between the two shipped languages; the empty
+      # value means "the default", so the cookie is expired instead of stored
+      if @"language" == "Chinese":
+        savePref("language", "Chinese", request)
+      else:
+        savePref("language", "", request, expire=true)
+      redirect(refPath())
+
     post "/resetprefs":
       genResetPrefs()
       redirect("/settings?referer=" & encodeUrl(refPath()))

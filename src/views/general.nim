@@ -3,6 +3,7 @@ import uri, strutils, strformat
 import karax/[karaxdsl, vdom]
 
 import renderutils
+import ../i18n
 import ../utils, ../types, ../prefs, ../formatters
 
 import jester
@@ -134,7 +135,9 @@ proc renderMain*(body: VNode; req: Request; cfg: Config; prefs=defaultPrefs;
     if twitterLink.len > 0: twitterLink
     else: getTwitterLink(req.path, req.params)
 
-  let node = buildHtml(html(lang="en")):
+  let zh = prefs.language == langZh
+  let titleText = if zh: translateString(titleText) else: titleText
+  let node = buildHtml(html(lang=(if zh: "zh" else: "en"))):
     renderHead(prefs, cfg, req, titleText, desc, video, images, banner, ogTitle,
                rss, twitterLink, oembed)
 
@@ -145,6 +148,7 @@ proc renderMain*(body: VNode; req: Request; cfg: Config; prefs=defaultPrefs;
       tdiv(class="container"):
         body
 
+  if zh: translatePage(node)
   result = doctype & $node
 
 proc renderError*(error: string): VNode =

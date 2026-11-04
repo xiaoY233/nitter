@@ -54,6 +54,10 @@ genPrefs:
     theme(select, "Nitter"):
       "Theme"
 
+    language(select, "English"):
+      "Language"
+      options: @["English", "Chinese"]
+
     infiniteScroll(checkbox, false):
       "Infinite scrolling (experimental, requires JavaScript)"
 
