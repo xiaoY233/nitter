@@ -164,6 +164,21 @@ nitter` or `journalctl -u nitter.service`. Setting `enableDebug = true` adds
 request logs and the `/.sessions` endpoint, which exposes session details; use
 it for troubleshooting only.
 
+## Continuous integration
+
+Two GitHub Actions workflows live in `.github/workflows`:
+
+| Workflow | Runs on | What it does |
+|---|---|---|
+| `run-tests.yml` | Pushes to other branches, pull requests | Builds with Nim 2.0 and 2.2, runs the unit tests, renders the CSS and the about page |
+| `build-docker.yml` | Pushes to `master`, pull requests that touch the build, manual | Tests, builds the image for amd64 and arm64, then starts the amd64 image against a Redis service and checks `/.health` |
+
+Neither workflow pushes an image, so no registry credentials are needed. Build
+and publish the image yourself (`docker build -t <name> .`, then `docker push`).
+The browser tests in `tests/` read real X pages and need live sessions, so they
+are not part of CI; run them locally with `cd tests && poetry run pytest` against
+a running server.
+
 ## Troubleshooting
 
 | Symptom | Likely cause |

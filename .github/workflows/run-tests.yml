@@ -1,11 +1,16 @@
 name: Tests
 
 on:
+  # branches other than master, plus pull requests. master runs the same steps
+  # as part of build-docker.yml, so the image is never built without them.
   push:
     paths-ignore:
       - "*.md"
     branches-ignore:
       - master
+  pull_request:
+    paths-ignore:
+      - "*.md"
   workflow_call:
 
 # Ensure that multiple runs on the same branch do not overlap.
@@ -17,13 +22,17 @@ defaults:
   run:
     shell: bash
 
+# The browser tests in tests/ (seleniumbase against real X pages) are not run
+# here: they need a live X session in the SESSIONS secret. Run them locally with
+# `cd tests && poetry run pytest` after starting the server.
+
 jobs:
   build-test:
     name: Build and test
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        nim: ["2.0.x", "2.2.x", "devel"]
+        nim: ["2.0.x", "2.2.x"]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -43,14 +52,20 @@ jobs:
         uses: jiro4989/setup-nim-action@v2
         with:
           nim-version: ${{ matrix.nim }}
-          use-nightlies: true
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Project
         run: nimble build -Y
 
-      - name: Agent API unit tests
-        run: nim c -r --hints:off -o:/tmp/test_agent_api tests/test_agent_api.nim
+      - name: Unit tests
+        run: |
+          nim c -r --hints:off -o:/tmp/test_agent_api tests/test_agent_api.nim
+          nim c -r --hints:off -o:/tmp/test_i18n tests/test_i18n.nim
+
+      - name: Render CSS and Markdown
+        run: |
+          nim r --hint[Processing]:off tools/gencss
+          nim r --hint[Processing]:off tools/rendermd
 
       - name: Upload 2.2.x build artifact
         if: matrix.nim == '2.2.x'
@@ -60,96 +75,3 @@ jobs:
           path: |
             ./nitter
           if-no-files-found: error
-
-  integration-test:
-    needs: [build-test]
-    name: Integration test
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-
-    services:
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-
-    steps:
-      - name: Install runtime deps
-        run: |
-          sudo apt-get install -y --no-install-recommends libsass-dev libpcre3
-
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Cache pipx (poetry)
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.local/pipx
-            ~/.local/bin
-          key: pipx-poetry-${{ runner.os }}
-
-      - name: Install poetry
-        env:
-          PIPX_HOME: ~/.local/pipx
-          PIPX_BIN_DIR: ~/.local/bin
-        run: command -v poetry >/dev/null 2>&1 || pipx install poetry
-
-      - name: Setup Python (3.14) with Poetry cache
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-          cache: poetry
-          cache-dependency-path: tests/poetry.lock
-
-      - name: Install Python deps
-        working-directory: tests
-        run: poetry sync
-
-      - name: Cache Nimble Dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.nimble/pkgcache
-            ~/.nimble/packages_official.json
-          key: 2.2.x-nimble-v6-${{ hashFiles('*.nimble') }}
-          restore-keys: |
-            2.2.x-nimble-v6-
-
-      - name: Setup Nim
-        uses: jiro4989/setup-nim-action@v2
-        with:
-          nim-version: 2.2.x
-          use-nightlies: true
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Nimble dependencies
-        run: nimble install -y --depsOnly
-
-      - name: Download 2.2.x build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: nitter-linux-nim-2.2.x-${{ github.sha }}
-          path: .
-
-      - name: Make nitter binary executable
-        run: chmod +x ./nitter
-
-      - name: Prepare Nitter Environment
-        run: |
-          cp nitter.example.conf nitter.conf
-          sed -i 's/enableDebug = false/enableDebug = true/g' nitter.conf
-          sed -i 's/maxRetries = 1/maxRetries = 3/g' nitter.conf
-          sed -i 's/hostname = "nitter.net"/hostname = "localhost:8080"/g' nitter.conf
-
-          nim r tools/rendermd.nim
-          nim r tools/gencss.nim
-
-          echo '${{ secrets.SESSIONS }}' | head -n1
-          echo '${{ secrets.SESSIONS }}' > ./sessions.jsonl
-
-      - name: Run Tests
-        run: |
-          ./nitter &
-          cd tests
-          poetry run pytest -n2 --rs .

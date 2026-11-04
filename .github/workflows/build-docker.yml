@@ -1,25 +1,72 @@
 name: Docker
 
+# On every push to master: run the unit tests, then build the image on both
+# architectures to prove the Dockerfile still works. Nothing is pushed to a
+# registry; publishing is done outside this repository.
 on:
   push:
-    paths-ignore:
-      - "README.md"
     branches:
       - master
+    paths-ignore:
+      - "*.md"
+      - "docs/**"
+      - "skills/**"
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - "compose.yml"
+      - "nitter.nimble"
+      - "src/**"
+      - "public/**"
+      - "tools/**"
+      - ".github/workflows/build-docker.yml"
+  workflow_dispatch:
 
 concurrency:
-  group: docker-publish-${{ github.ref }}
+  group: docker-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  IMAGE: zedeus/nitter
+  IMAGE: nitter
 
 jobs:
   tests:
-    uses: ./.github/workflows/run-tests.yml
-    secrets: inherit
+    name: Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache Nimble dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.nimble/pkgcache
+            ~/.nimble/packages_official.json
+          key: 2.2.x-nimble-v6-${{ hashFiles('*.nimble') }}
+          restore-keys: |
+            2.2.x-nimble-v6-
+
+      - name: Setup Nim
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: 2.2.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: nimble build -Y
+
+      - name: Unit tests
+        run: |
+          nim c -r --hints:off -o:/tmp/test_agent_api tests/test_agent_api.nim
+          nim c -r --hints:off -o:/tmp/test_i18n tests/test_i18n.nim
+
+      - name: Render the stylesheets and the about page
+        run: |
+          nim r --hint[Processing]:off tools/gencss
+          nim r --hint[Processing]:off tools/rendermd
 
   build:
+    name: Build image (${{ matrix.platform }})
     needs: [tests]
     strategy:
       fail-fast: false
@@ -31,11 +78,6 @@ jobs:
             platform: linux/arm64
     runs-on: ${{ matrix.runner }}
     steps:
-      - name: Prepare platform name
-        run: echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
-        env:
-          platform: ${{ matrix.platform }}
-
       - uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
@@ -43,69 +85,84 @@ jobs:
         with:
           version: latest
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push by digest
-        id: build
+      # no `push`, no `load`: the result stays in the build cache and only the
+      # exit status matters
+      - name: Build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
-          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
           provenance: false
           sbom: false
 
-      - name: Export digest
-        run: |
-          mkdir -p "${{ runner.temp }}/digests"
-          digest="${{ steps.build.outputs.digest }}"
-          touch "${{ runner.temp }}/digests/${digest#sha256:}"
-
-      - name: Upload digest
-        uses: actions/upload-artifact@v4
-        with:
-          name: digests-${{ env.PLATFORM_PAIR }}
-          path: ${{ runner.temp }}/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  # Combine the per-arch digests into one multi-arch manifest so that
-  # `docker pull zedeus/nitter:latest` serves the right image on any CPU.
-  merge:
+  smoke:
+    name: Smoke test (linux/amd64)
     needs: [build]
     runs-on: ubuntu-24.04
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
-      - name: Download digests
-        uses: actions/download-artifact@v4
-        with:
-          path: ${{ runner.temp }}/digests
-          pattern: digests-*
-          merge-multiple: true
+      - uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           version: latest
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
+      - name: Build for the local platform
+        uses: docker/build-push-action@v6
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          load: true
+          cache-from: type=gha,scope=linux/amd64
+          tags: ${{ env.IMAGE }}:ci
+          provenance: false
+          sbom: false
 
-      - name: Create manifest list and push
-        working-directory: ${{ runner.temp }}/digests
+      # The server exits at startup without Redis (hence the service above) and
+      # without a sessions file, so an empty one is mounted. The health endpoint
+      # needs no X session and no API token, so it proves the binary starts,
+      # reads its config and serves HTTP.
+      - name: Start the container and wait for /.health
         run: |
-          docker buildx imagetools create \
-            -t ${{ env.IMAGE }}:latest \
-            -t ${{ env.IMAGE }}:latest-arm64 \
-            -t ${{ env.IMAGE }}:${{ github.sha }} \
-            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+          set -eux
+          sed -i 's/redisHost = "localhost"/redisHost = "127.0.0.1"/' nitter.example.conf
+          : > sessions.jsonl
+          docker run -d --name nitter-ci --network host \
+            -v "$PWD/nitter.example.conf:/src/nitter.conf:ro" \
+            -v "$PWD/sessions.jsonl:/src/sessions.jsonl:ro" \
+            "${{ env.IMAGE }}:ci"
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/.health; then
+              echo
+              docker logs nitter-ci | tail -5
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "the container did not answer within 60s" >&2
+          docker logs nitter-ci >&2 || true
+          exit 1
 
-      - name: Inspect image
-        run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ github.sha }}
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs nitter-ci || true
+
+      - name: Stop the container
+        if: always()
+        run: |
+          docker stop nitter-ci || true
+          docker rm nitter-ci || true
