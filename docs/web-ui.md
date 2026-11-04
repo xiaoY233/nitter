@@ -1,13 +1,13 @@
 # Web interface
 
 The agent API is the main feature, but the web pages are still there. This
-page covers the two things you can change about them: the **X theme** and the
+page covers what you can change about them: the **theme** and the
 **language**. Both are ordinary preferences, so they are stored in a cookie and
 can be set per browser on the settings page (the gear icon).
 
 ## The X theme
 
-**X** is the interface of this project, and the only theme shipped. It lays the
+**X** is the default theme and the interface of this project. It lays the
 web pages out after the X website: a left navigation rail, a 600px content
 column and a right-hand column with search.
 
@@ -29,14 +29,51 @@ rules for new work are in [ui-system.md](ui-system.md). Shadows are off.
 
 Notes:
 
-- It is the default. The *Theme* preference is kept so that more themes can be
-  added later: drop a stylesheet into `public/css/themes/` and it appears in the
-  list. A stored theme whose stylesheet no longer exists falls back to X, so old
+- It is the default. See [Themes](#themes) for the other colour schemes. A
+  stored theme whose stylesheet no longer exists falls back to X, so old
   cookies keep working.
 - Nitter is read-only. There are no like, follow or compose buttons, and no
   "For you" timeline, notifications or messages.
 - The icons are drawn for this project. It does not use the X logo, its icon
   set or its typeface; text uses the system font stack.
+
+### Themes
+
+Besides **X**, the *Theme* preference offers five more: **Vercel**, **Mono**,
+**Claude**, **Codex** and **TikTok**. They keep the same three-column layout,
+components and shortcuts; only colours, corner radius and (where the visitor has
+it installed) the typeface change. Each has a light and a dark palette, and the
+*Light / Dark / System* choice in the Appearance menu picks between them.
+
+| Theme | Look | Corners |
+| --- | --- | --- |
+| X | Blue accent on white or black | Round |
+| Vercel | Black and white, hairline borders | Medium |
+| Mono | Grey, monospace type | Square |
+| Claude | Warm paper tones, terracotta accent | Medium |
+| Codex | White or near-black, blue accent | Slight |
+| TikTok | White or black, red accent, cyan highlights | Medium |
+
+The colours come from [tweakcn](https://tweakcn.com): Vercel, Mono and Claude
+are its built-in themes, Codex and TikTok are community themes. Only the colour
+tokens and the radius are used. No font files are shipped or fetched: each theme
+names its typeface (Geist, Geist Mono, Inter, TikTok Sans) first and falls back to
+the system font stack, so it shows only on devices that already have the font.
+
+A theme is one stylesheet of variables in `public/css/themes/`, so adding one
+needs no layout work:
+
+1. Fetch its definition, for example
+   `curl https://tweakcn.com/r/themes/vercel.json -o tools/themes/sources/vercel.json`.
+2. Add a line for it to `META` in `tools/themes/gen.py` and the name to `xThemes`
+   in `src/views/xtheme.nim`.
+3. Run `python3 tools/themes/gen.py tools/themes/sources/*.json`.
+
+The generator maps shadcn tokens onto the variables the stylesheets read (see
+[ui-system.md](ui-system.md#themes)), and nudges a colour toward the text colour
+when it would be too faint to read (faded text and links need 4.5:1, the
+border must differ from the page). A stylesheet that is not in `xThemes` keeps the
+original Nitter top bar.
 
 ### JavaScript enhancements
 

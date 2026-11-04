@@ -87,7 +87,7 @@ and the REST API are covered in [docs/agent-api.md](docs/agent-api.md).
 | [docs/deployment.md](docs/deployment.md) | Docker Compose, `docker run`, source build, systemd, troubleshooting |
 | [docs/configuration.md](docs/configuration.md) | Every `nitter.conf` option and the environment variables |
 | [docs/sessions.md](docs/sessions.md) | Account sessions, upstream and server rate limits, error meanings |
-| [docs/web-ui.md](docs/web-ui.md) | The X theme, its optional keyboard shortcuts, and the Chinese interface |
+| [docs/web-ui.md](docs/web-ui.md) | The X theme and the colour themes, its optional keyboard shortcuts, and the Chinese interface |
 | [docs/agent-api.md](docs/agent-api.md) | Tools, REST, MCP, data notes, Skills |
 | [skills/README.md](skills/README.md) | Installing the agent Skills |
 
