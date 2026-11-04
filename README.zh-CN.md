@@ -36,6 +36,9 @@
 - **有防护。** Bearer 令牌、按令牌限速、Origin 检查，以及 Redis 缓存，避免重复提问消耗会话额度。
 - **可自描述。** `GET /api/v1/openapi.json` 和 `GET /llms.txt` 向任何客户端列出这些工具。
 - **默认关闭。** 没有设置 `[Api] enabled = true` 时，服务器就是普通的 Nitter 网页前端。
+- **预构建镜像。** CI 在每次推送到 `master` 和版本标签时发布多架构镜像到
+  `ghcr.io/xiaoy233/nitter`；首次发布后可能需要在设置里改为公开（见
+  [docs/deployment.md](docs/deployment.md#published-images)）。
 
 ## 网页界面
 
@@ -55,6 +58,7 @@
 ```sh
 git clone https://github.com/xiaoY233/nitter.git && cd nitter
 docker build -t vuldocker/nitter:latest .
+# 也可以直接用 CI 发布的镜像：docker pull ghcr.io/xiaoy233/nitter:latest
 
 cp nitter.example.conf nitter.conf     # 设置 [Api] enabled = true、redisHost = "nitter-redis"
 cp /path/to/sessions.jsonl .           # X 账号会话

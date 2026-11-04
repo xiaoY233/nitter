@@ -1,12 +1,14 @@
 name: Docker
 
-# On every push to master: run the unit tests, then build the image on both
-# architectures to prove the Dockerfile still works. Nothing is pushed to a
-# registry; publishing is done outside this repository.
+# On every push to master and on version tags: run the tests, build the image
+# for both architectures, smoke test it, then publish it to the GitHub Container
+# Registry as ghcr.io/<owner>/<repo>. Pull requests only build and test.
 on:
   push:
     branches:
       - master
+    tags:
+      - "v*"
     paths-ignore:
       - "*.md"
       - "docs/**"
@@ -26,8 +28,13 @@ concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  # push to ghcr.io with the built-in token; no secret to configure
+  packages: write
+
 env:
-  IMAGE: nitter
+  REGISTRY: ghcr.io
 
 jobs:
   tests:
@@ -87,14 +94,27 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Image name in lower case
+        run: echo "IMAGE=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
           version: latest
 
-      # no `push`, no `load`: the result stays in the build cache and only the
-      # exit status matters
+      - name: Log in to the container registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # On a pull request the result is thrown away, only the exit status
+      # matters. Otherwise each architecture is pushed by digest and the two
+      # digests are combined into one manifest in the publish job.
       - name: Build
+        if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -104,6 +124,36 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
           provenance: false
           sbom: false
+
+      - name: Build and push by digest
+        id: build
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+          provenance: false
+          sbom: false
+
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p "${{ runner.temp }}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
   smoke:
     name: Smoke test (linux/amd64)
@@ -135,7 +185,7 @@ jobs:
           platforms: linux/amd64
           load: true
           cache-from: type=gha,scope=linux/amd64
-          tags: ${{ env.IMAGE }}:ci
+          tags: nitter:ci
           provenance: false
           sbom: false
 
@@ -151,7 +201,7 @@ jobs:
           docker run -d --name nitter-ci --network host \
             -v "$PWD/nitter.example.conf:/src/nitter.conf:ro" \
             -v "$PWD/sessions.jsonl:/src/sessions.jsonl:ro" \
-            "${{ env.IMAGE }}:ci"
+            nitter:ci
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8080/.health; then
               echo
@@ -173,3 +223,61 @@ jobs:
         run: |
           docker stop nitter-ci || true
           docker rm nitter-ci || true
+
+  # Combines the per-architecture digests into one manifest, so that
+  # `docker pull ghcr.io/<owner>/<repo>:latest` serves the right image on any
+  # CPU. Only runs once the smoke test passed.
+  publish:
+    name: Publish to ghcr.io
+    needs: [build, smoke]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Image name in lower case
+        run: echo "IMAGE=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
+
+      - name: Log in to the container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # latest on the default branch, the version on a v* tag, and always the
+      # commit, so a specific build can be pulled back
+      - name: Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=ref,event=branch
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Create the manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          set -eux
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE }}@sha256:%s ' *)
+
+      - name: Inspect the published image
+        run: |
+          docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ steps.meta.outputs.version }}

@@ -41,6 +41,10 @@ Seven read-only tools, available through `POST /mcp` and `/api/v1/...`:
   tools for any client.
 - **Disabled by default.** Without `[Api] enabled = true` the server behaves as
   the plain Nitter web front-end.
+- **Prebuilt images.** CI publishes a multi-arch image to
+  `ghcr.io/xiaoy233/nitter` on every push to `master` and on version tags; it
+  may need to be made public once (see
+  [docs/deployment.md](docs/deployment.md#published-images)).
 
 ## The web pages
 
@@ -63,6 +67,7 @@ Details are in [docs/web-ui.md](docs/web-ui.md).
 ```sh
 git clone https://github.com/xiaoY233/nitter.git && cd nitter
 docker build -t vuldocker/nitter:latest .
+# or use the image published by CI: docker pull ghcr.io/xiaoy233/nitter:latest
 
 cp nitter.example.conf nitter.conf     # set [Api] enabled = true, redisHost = "nitter-redis"
 cp /path/to/sessions.jsonl .           # X account sessions

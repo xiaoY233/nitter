@@ -171,10 +171,35 @@ Two GitHub Actions workflows live in `.github/workflows`:
 | Workflow | Runs on | What it does |
 |---|---|---|
 | `run-tests.yml` | Pushes to other branches, pull requests | Builds with Nim 2.0 and 2.2, runs the unit tests, renders the CSS and the about page |
-| `build-docker.yml` | Pushes to `master`, pull requests that touch the build, manual | Tests, builds the image for amd64 and arm64, then starts the amd64 image against a Redis service and checks `/.health` |
+| `build-docker.yml` | Pushes to `master` and to `v*` tags, pull requests that touch the build, manual | Tests, builds the image for amd64 and arm64, smoke tests the amd64 image against a Redis service with `/.health`, then publishes to the GitHub Container Registry |
 
-Neither workflow pushes an image, so no registry credentials are needed. Build
-and publish the image yourself (`docker build -t <name> .`, then `docker push`).
+### Published images
+
+`build-docker.yml` publishes to `ghcr.io` with the workflow's built-in token, so
+there is no secret to configure:
+
+| Trigger | Tags |
+|---|---|
+| Push to `master` | `latest`, `master`, `sha-<commit>` |
+| Push of a `v1.2.3` tag | `1.2.3`, `1.2`, `sha-<commit>` |
+
+The manifest covers `linux/amd64` and `linux/arm64`, so one pull serves either
+architecture. Pull requests build and test but never publish.
+
+```sh
+docker pull ghcr.io/<owner>/<repo>:latest
+```
+
+The first publish creates a **private** package by default. To let others pull
+it, open the package under the repository owner's *Packages* tab, then *Package
+settings* → *Change visibility* → *Public*. Images are published only after the
+tests and the smoke test pass. If your organisation forbids packages, disable
+the `publish` job or drop the `packages: write` permission.
+
+`compose.yml` uses `vuldocker/nitter`, which is published outside this
+repository; change the `image:` line to the `ghcr.io` name to use the images
+built here.
+
 The browser tests in `tests/` read real X pages and need live sessions, so they
 are not part of CI; run them locally with `cd tests && poetry run pytest` against
 a running server.
