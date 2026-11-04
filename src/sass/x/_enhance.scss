@@ -1,0 +1,73 @@
+// "X" theme: styles used by public/js/xtheme.js (photo viewer, shortcuts, help).
+// Nothing here has any effect unless the script is enabled.
+body.theme-x {
+  // ---- keyboard selection
+  .timeline-item.x-current {
+    background-color: var(--x_hover_bg);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  // ---- photo viewer
+  .x-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.92);
+    &[hidden] { display: none; }
+
+    .x-lb-img {
+      max-width: 92vw;
+      max-height: 92vh;
+      object-fit: contain;
+      border-radius: 4px;
+    }
+    button {
+      float: none;
+      position: absolute;
+      border: 0;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 28px;
+      line-height: 1;
+      padding: 0 0 4px;
+      cursor: pointer;
+      &:hover { background: rgba(255, 255, 255, 0.25); }
+      &[hidden] { display: none; }
+    }
+    .x-lb-close { top: 16px; left: 16px; }
+    .x-lb-prev { left: 16px; top: 50%; margin-top: -22px; }
+    .x-lb-next { right: 16px; top: 50%; margin-top: -22px; }
+  }
+}
+html.x-lb-open { overflow: hidden; }
+
+// ---- shortcut help
+body.theme-x .x-help {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 900;
+  max-width: 340px;
+  padding: 16px 20px;
+  border: 1px solid var(--border_grey);
+  border-radius: 16px;
+  background: var(--bg_color);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  h2 { margin: 0 0 8px; font-size: 17px; font-weight: 800; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
+  dt { font-weight: 700; white-space: nowrap; }
+  dd { margin: 0; color: var(--fg_faded); }
+}
+
+// ---- bottom bar hides while scrolling down on phones
+@media (max-width: 600px) {
+  body.theme-x .x-nav { transition: transform 0.2s; }
+  body.theme-x .x-nav.x-nav-hidden { transform: translateY(100%); }
+}

@@ -61,6 +61,9 @@ genPrefs:
     infiniteScroll(checkbox, false):
       "Infinite scrolling (experimental, requires JavaScript)"
 
+    xEnhancements(checkbox, true):
+      "X theme: photo viewer, keyboard shortcuts and search history (requires JavaScript)"
+
     stickyProfile(checkbox, true):
       "Make profile sidebar stick to top"
 
