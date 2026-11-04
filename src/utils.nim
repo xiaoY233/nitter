@@ -7,6 +7,8 @@ var
   base64Media = false
 
 const
+  repoUrl* = "https://github.com/xiaoY233/nitter"       # this fork
+  upstreamUrl* = "https://github.com/zedeus/nitter"     # where it comes from
   https* = "https://"
   twimg* = "pbs.twimg.com/"
   nitterParams* = ["name", "tab", "id", "list", "referer", "scroll", "prefs"]

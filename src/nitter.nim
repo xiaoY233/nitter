@@ -25,8 +25,8 @@ proc validFormBody(body: string): bool =
     i = amp + 1
   true
 
-const instancesUrl = "https://github.com/zedeus/nitter/wiki/Instances"
-const issuesUrl = "https://github.com/zedeus/nitter/issues"
+const instancesUrl = repoUrl & "/wiki/Instances"
+const issuesUrl = repoUrl & "/issues"
 
 let
   configPath = getEnv("NITTER_CONF_FILE", "./nitter.conf")
