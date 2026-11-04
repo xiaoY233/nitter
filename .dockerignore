@@ -1,5 +1,5 @@
 *.png
-*.md
+/*.md
 LICENSE
 docker-compose.yml
 Dockerfile
