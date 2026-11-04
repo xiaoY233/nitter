@@ -1,56 +1,70 @@
 # About
 
-Nitter is a free and open source alternative Twitter front-end focused on
-privacy and performance. The source is available on GitHub at
-<https://github.com/zedeus/nitter>
+This server gives AI agents access to public X (Twitter) data. It exposes seven
+tools over REST and MCP, so an assistant can look up a profile, read a
+timeline, follow a conversation or search posts without opening a browser.
 
-- No JavaScript or ads
-- All requests go through the backend, client never talks to Twitter
-- Prevents Twitter from tracking your IP or JavaScript fingerprint
-- Uses Twitter's unofficial API (no developer account required)
-- Lightweight (for [@nim_lang](/nim_lang), 60KB vs 784KB from twitter.com)
-- RSS feeds
-- Themes
-- Mobile support (responsive design)
-- AGPLv3 licensed, no proprietary instances permitted
+The web pages you are reading are the same data in a human-readable form. They
+are here so you can check what an agent sees, browse by hand, or follow a
+profile without writing any code. They are not the point of the instance; the
+API is.
 
-Nitter's GitHub wiki contains
-[instances](https://github.com/zedeus/nitter/wiki/Instances) and
-[browser extensions](https://github.com/zedeus/nitter/wiki/Extensions)
-maintained by the community.
+## For agents
 
-## Why use Nitter?
+Four ways in:
 
-It's impossible to use Twitter without JavaScript enabled, and as of 2024 you
-need to sign up. For privacy-minded folks, preventing JavaScript analytics and
-IP-based tracking is important, but apart from using a VPN and uBlock/uMatrix,
-it's impossible. Despite being behind a VPN and using heavy-duty adblockers,
-you can get accurately tracked with your [browser's
-fingerprint](https://restoreprivacy.com/browser-fingerprinting/), [no
-JavaScript required](https://noscriptfingerprint.com/). This all became
-particularly important after Twitter [removed the
-ability](https://www.eff.org/deeplinks/2020/04/twitter-removes-privacy-option-and-shows-why-we-need-strong-privacy-laws)
-for users to control whether their data gets sent to advertisers.
+- `/api/v1/...` — REST, with an OpenAPI document at `/api/v1/openapi.json`
+- `/mcp` — an MCP server, for agents that speak that protocol
+- `/llms.txt` — a plain-text description of the tools, for anything else
+- Skills — short instructions that teach an agent when and how to call the tools (research, thread digest, account brief). They are the `skills/` directory of the project repository, not part of this domain
 
-Using an instance of Nitter (hosted on a VPS for example), you can browse
-Twitter without JavaScript while retaining your privacy. In addition to
-respecting your privacy, Nitter is on average around 15 times lighter than
-Twitter, and in most cases serves pages faster (eg. timelines load 2-4x faster).
+The seven tools:
 
-In the future a simple account system will be added that lets you follow Twitter
-users, allowing you to have a clean chronological timeline without needing a
-Twitter account.
+- `get_user` — a profile and its counts
+- `get_user_timeline` — one account's posts, replies, media or articles
+- `get_tweet` — a single post, by id or URL
+- `get_thread` — a post with its ancestors, replies and continuation
+- `search_tweets` — keyword, author and date search
+- `search_users` — find accounts
+- `get_user_connections` — followers and following
 
-## Donating
+Responses are compact Markdown by default and JSON on request, with uniform
+pagination and stable error codes. Text written by other people is fenced and
+marked as untrusted, so an injected instruction in a post is visible as data
+rather than obeyed as a command. Requests need a bearer token issued by the
+operator; without one the API stays switched off and only these pages are
+served.
 
-Liberapay: https://liberapay.com/zedeus \
-Patreon: https://patreon.com/nitter \
-BTC: bc1qpqpzjkcpgluhzf7x9yqe7jfe8gpfm5v08mdr55 \
-ETH: 0x24a0DB59A923B588c7A5EBd0dBDFDD1bCe9c4460 \
-XMR: 42hKayRoEAw4D6G6t8mQHPJHQcXqofjFuVfavqKeNMNUZfeJLJAcNU19i1bGdDvcdN6romiSscWGWJCczFLe9RFhM3d1zpL \
-SOL: ANsyGNXFo6osuFwr1YnUqif2RdoYRhc27WdyQNmmETSW \
-ZEC: u1vndfqtzyy6qkzhkapxelel7ams38wmfeccu3fdpy2wkuc4erxyjm8ncjhnyg747x6t0kf0faqhh2hxyplgaum08d2wnj4n7cyu9s6zhxkqw2aef4hgd4s6vh5hpqvfken98rg80kgtgn64ff70djy7s8f839z00hwhuzlcggvefhdlyszkvwy3c7yw623vw3rvar6q6evd3xcvveypt
+The tools only read. There is no post, like, repost, follow or message call, so
+a misbehaving agent cannot act on your account even if it tries.
 
-## Contact
+## For people
 
-Feel free to join our [Matrix channel](https://matrix.to/#/#nitter:matrix.org).
+Without an X account you can read profiles, posts, threads, replies, searches,
+lists and communities, in any theme, with JavaScript disabled. RSS feeds exist
+for profiles, lists and searches, so a reader or a script can follow an account
+in the background.
+
+What you cannot do is write, for the same reason as above: this instance holds
+no credentials for acting as you.
+
+## What it stores
+
+- **Nothing about visitors.** No accounts, no analytics, no tracking pixels.
+  Your display preferences (theme, language, media settings) live in a cookie in
+  your own browser; clearing cookies resets them.
+- **A cache of public data.** Posts and profiles fetched recently are kept for a
+  short time so repeated questions do not spend the operator's rate limit. The
+  cache holds public content, not visitors.
+- **Your own search history**, if you leave the X theme's enhancements on: the
+  words you searched for are kept in your browser's storage and never sent here.
+
+## Credits and licence
+
+The code is [Nitter](https://github.com/zedeus/nitter), started by zedeus and
+maintained by its contributors, extended here with the agent API, the X theme
+and the Chinese interface. The source for this fork is at
+<https://github.com/xiaoY233/nitter>.
+
+Licensed under the AGPLv3. If you run a modified copy, publish your changes
+under the same licence.
