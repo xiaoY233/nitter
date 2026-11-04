@@ -22,7 +22,14 @@ template getPath*(): untyped {.dirty.} =
   $(parseUri(request.path) ? filterParams(request.params))
 
 template refPath*(): untyped {.dirty.} =
-  if @"referer".len > 0: @"referer" else: "/"
+  ## The referer comes from a form field, so only same-site paths are used:
+  ## anything absolute, protocol-relative or with a host is ignored.
+  let referer = @"referer"
+  if referer.len > 0 and
+     (referer[0] == '/' and (referer.len == 1 or referer[1] notin {'/', '\\'}) or
+      referer.startsWith("/?")):
+    referer
+  else: "/"
 
 template getCursor*(): string =
   let cursor = @"cursor"
