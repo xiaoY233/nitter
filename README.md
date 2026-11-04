@@ -1,8 +1,12 @@
 # Nitter Agent API
 
+**English** | [简体中文](README.zh-CN.md)
+
 A self-hosted, read-only gateway that lets AI agents read public X (Twitter)
-data. It serves one set of tools over **REST**, **MCP** and **agent Skills**,
-and keeps Nitter's privacy-friendly web front-end alongside.
+data. One set of tools is served over **REST**, **MCP** and agent **Skills**,
+and Nitter's web front-end stays alongside it for people.
+
+![The home page](docs/images/home.png)
 
 ```
  agent (Claude Code, Codex, pi, DeepSeek Harness, ...)
@@ -30,7 +34,7 @@ Seven read-only tools, available through `POST /mcp` and `/api/v1/...`:
   content to blunt prompt injection.
 - **Read-only.** There is no write, post or DM tool.
 - **Your own X sessions.** It reads X's web endpoints through the accounts you
-  provide (see [docs/sessions.md](docs/sessions.md)).
+  provide (see [docs/sessions.md](docs/sessions.md)). No official API key.
 - **Protected.** Bearer tokens, per-token rate limits, Origin checks, and a
   Redis cache that keeps repeated questions off your session quota.
 - **Self-describing.** `GET /api/v1/openapi.json` and `GET /llms.txt` list the
@@ -38,8 +42,21 @@ Seven read-only tools, available through `POST /mcp` and `/api/v1/...`:
 - **Disabled by default.** Without `[Api] enabled = true` the server behaves as
   the plain Nitter web front-end.
 
-The web pages (no JavaScript needed, no ads, RSS) are still served on the
-same port. It shares the sessions and the cache with the API.
+## The web pages
+
+The same port serves a browser interface for people, in a three-column layout
+(navigation rail, timeline, search and tips):
+
+- **Themes.** X (default), Vercel, Mono, Claude, Codex and TikTok, each with a
+  light and a dark palette. *Light / Dark / System* is in the Appearance menu.
+- **Chinese interface.** One click switches the interface to 简体中文. Posts
+  and names from X are never translated.
+- **Optional extras** (on by default, plain pages work without them): a photo
+  viewer, keyboard shortcuts (`?` lists them) and a word cloud of the searches
+  made in your own browser. They never leave the browser.
+- **No JavaScript needed, no ads, RSS feeds** for profiles, lists and searches.
+
+Details are in [docs/web-ui.md](docs/web-ui.md).
 
 ## Quick start
 
@@ -62,7 +79,8 @@ curl -H "Authorization: Bearer <secret>" \
   "http://127.0.0.1:8080/api/v1/users/jack?format=markdown"
 ```
 
-`<secret>` is the part of the token after the colon. The full walk-through,
+`<secret>` is the part of the token after the colon. Open
+`http://127.0.0.1:8080` in a browser for the web pages. The full walk-through,
 including building from source and systemd, is in
 [docs/deployment.md](docs/deployment.md).
 
@@ -87,8 +105,9 @@ and the REST API are covered in [docs/agent-api.md](docs/agent-api.md).
 | [docs/deployment.md](docs/deployment.md) | Docker Compose, `docker run`, source build, systemd, troubleshooting |
 | [docs/configuration.md](docs/configuration.md) | Every `nitter.conf` option and the environment variables |
 | [docs/sessions.md](docs/sessions.md) | Account sessions, upstream and server rate limits, error meanings |
-| [docs/web-ui.md](docs/web-ui.md) | The X theme and the colour themes, its optional keyboard shortcuts, and the Chinese interface |
 | [docs/agent-api.md](docs/agent-api.md) | Tools, REST, MCP, data notes, Skills |
+| [docs/web-ui.md](docs/web-ui.md) | The X theme and the colour themes, keyboard shortcuts, the Chinese interface |
+| [docs/ui-system.md](docs/ui-system.md) | Design tokens and components, for people changing the web pages |
 | [skills/README.md](skills/README.md) | Installing the agent Skills |
 
 ## Notes
@@ -101,7 +120,9 @@ and the REST API are covered in [docs/agent-api.md](docs/agent-api.md).
 ## License and origin
 
 This project is a fork of [zedeus/nitter](https://github.com/zedeus/nitter),
-licensed under the [GNU AGPL v3](LICENSE). The agent API, MCP server, Skills
-and related changes are by the maintainers of this repository and are released
-under the same license. If you offer this software over a network, the AGPL
-requires you to make the source of your running version available to its users.
+licensed under the [GNU AGPL v3](LICENSE). The agent API, MCP server, Skills,
+themes and related changes are by the maintainers of this repository and are
+released under the same license. If you offer this software over a network, the
+AGPL requires you to make the source of your running version available to its
+users. Theme colours come from [tweakcn](https://tweakcn.com) (Apache-2.0); the
+agent logos on the home page come from LobeHub (MIT).
