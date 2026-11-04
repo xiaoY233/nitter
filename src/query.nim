@@ -108,6 +108,11 @@ proc genQueryParam*(query: Query; maxId=""): string =
   if result.len > 0 and maxId.len > 0:
     result &= " max_id:" & maxId
 
+proc isBlank*(query: Query): bool =
+  ## true when there is nothing to search for yet
+  if query.kind in {users, lists}: query.text.len == 0
+  else: genQueryParam(query) in ["", emptyQuery]
+
 proc genQueryUrl*(query: Query): string =
   var params: seq[string]
 

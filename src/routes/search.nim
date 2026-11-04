@@ -39,20 +39,25 @@ proc createSearchRouter*(cfg: Config) =
       of users:
         if "," in q:
           redirect("/" & q)
-        var users: Result[User]
-        try:
-          users = await getGraphUserSearch(query, getCursor())
-        except InternalError:
-          users = Result[User](beginning: true, query: query)
+        var users = Result[User](beginning: true, query: query)
+        if not query.isBlank:
+          try:
+            users = await getGraphUserSearch(query, getCursor())
+          except InternalError:
+            discard
         resp renderMain(renderUserSearch(users, prefs), request, cfg, prefs, title)
       of tweets, top, QueryKind.media:
         let
           tweets = await getGraphTweetSearch(query, getCursor())
-          rss = if cfg.enableRSSSearch: "/search/rss?" & genQueryUrl(query) else: ""
+          rss = if cfg.enableRSSSearch and not query.isBlank:
+                  "/search/rss?" & genQueryUrl(query)
+                else: ""
         resp renderMain(renderTweetSearch(tweets, prefs, getPath()),
                         request, cfg, prefs, title, rss=rss)
       of lists:
-        let listResults = await getGraphListSearch(query, getCursor())
+        let listResults =
+          if query.isBlank: Result[ListSearchResult](beginning: true, query: query)
+          else: await getGraphListSearch(query, getCursor())
         resp renderMain(renderListSearch(listResults, prefs, getPath()),
                         request, cfg, prefs, title)
       else:

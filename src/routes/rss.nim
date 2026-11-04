@@ -71,6 +71,9 @@ proc createRssRouter*(cfg: Config) =
       if query.kind notin {QueryKind.tweets, QueryKind.top, QueryKind.media}:
         resp Http400, showError("Only Tweet searches are allowed for RSS feeds.", cfg)
 
+      if query.isBlank:
+        resp Http400, showError("Enter a search before subscribing to its RSS feed.", cfg)
+
       let
         cursor = getCursor()
         key = redisKey("search", $hash(genQueryUrl(query)), cursor)
