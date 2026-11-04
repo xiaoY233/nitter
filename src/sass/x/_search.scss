@@ -1,0 +1,253 @@
+// "X" theme, search pages, form controls and user result cards.
+// Scoped to body.theme-x.
+body.theme-x {
+  // ---- search header: the shared pill box, plus a filter toggle
+  .timeline-header {
+    background: transparent;
+    padding: 12px 16px 4px;
+    margin: 0;
+    text-align: left;
+    border: 0;
+  }
+
+  .search-field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    max-width: none;
+
+    .x-search-inner { flex: 1 1 0; min-width: 0; }
+
+    input[type="number"],
+    input[type="date"] { @include ui-control(36px); width: 100%; }
+    select { @include ui-select(36px); width: 100%; }
+
+    #search-panel-toggle { position: absolute; opacity: 0; pointer-events: none; }
+    // an outline icon button; filled with the soft accent while the panel is open
+    .x-filter-toggle {
+      @include ui-button(outline, icon);
+      float: none;
+      margin: 0;
+      .x-svg { width: 18px; height: 18px; }
+    }
+    // upstream caps the open panel at 380px (with !important on narrow screens)
+    #search-panel-toggle:checked ~ .search-panel { display: block; max-height: none !important; }
+    #search-panel-toggle:checked ~ .x-filter-toggle { background: var(--accent_soft); color: var(--accent); }
+    #search-panel-toggle:focus-visible ~ .x-filter-toggle { @include ui-ring; }
+  }
+
+  // ---- Gallery view: upstream widens the container and centres the header and
+  // the tabs in 900px. Here the controls keep the same place in all three media
+  // views, and only the pictures use the width.
+  .timeline-container.media-only {
+    padding: 0;
+    > .tab, > .timeline-header { max-width: none; margin-left: 0; margin-right: 0; }
+    > .tab { max-width: calc(100% - 32px); margin-left: 16px; margin-right: 16px; }
+  }
+
+  // ---- filter panel: no frame. Plain groups under the search box, a
+  // label (14px/500, muted) over each, as the shadcn Field pattern
+  .search-panel {
+    display: none;
+    flex-basis: 100%;
+    max-height: none;
+    overflow: visible;
+    margin: 8px 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    .search-title {
+      display: block;
+      margin: 16px 0 8px;
+      color: var(--fg_faded);
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 20px;
+      text-transform: none;
+      letter-spacing: 0;
+      &:first-child { margin-top: 0; }
+    }
+    .search-toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+  }
+  .search-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+    .pref-input { height: auto; margin: 0; padding: 0; }
+    .date-range { display: flex; align-items: center; gap: 8px; }
+    .date-range .search-title { margin: 0; }
+  }
+  @media (max-width: 600px) { .search-row { grid-template-columns: 1fr; } }
+
+  // ---- empty search (shadcn Empty): a muted icon tile, a title, one line
+  .x-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 64px 24px;
+    text-align: center;
+    .x-empty-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 8px;
+      border-radius: var(--x_radius_sm);
+      background: color-mix(in srgb, var(--fg_color) 7%, var(--bg_color));
+      color: var(--fg_color);
+      .x-svg { width: 24px; height: 24px; color: inherit; }
+    }
+    h2 { margin: 0; font-size: 18px; font-weight: 600; line-height: 28px; }
+    p { margin: 0; color: var(--fg_faded); font-size: 14px; line-height: 20px; }
+    .x-empty-tips {
+      display: none;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 16px;
+      code { @include ui-badge; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    }
+  }
+  @media (max-width: 1000px) { .x-empty .x-empty-tips { display: flex; } }
+
+  // ---- home page search: the shared pill, centred in the column
+  .search-bar { padding: 8px 16px; }
+  .search-bar > form { margin: 0 auto; }
+
+  // ---- user result cards: avatar, name over handle, bio under
+  .profile-result {
+    min-height: 0;
+    .tweet-header { margin-bottom: 2px; }
+    .tweet-name-row { justify-content: flex-start; }
+    .username { display: block; margin-left: 0; }
+    .fullname { max-width: 100%; }
+    .tweet-content { margin-top: 2px; color: var(--fg_color); }
+  }
+
+  // ---- load more / end of list
+  .show-more {
+    background: transparent;
+    padding: 16px;
+    a {
+      @include ui-button(outline);
+      float: none;
+      width: auto;
+    }
+  }
+  .timeline-item.show-more { border-top: 0; }
+  .timeline-footer { background: transparent; padding: 16px 0; }
+  .timeline-end, .timeline-none { color: var(--fg_faded); font-weight: 400; font-size: 15px; }
+  .top-ref { background: transparent; }
+
+  // ---- checkboxes are switches (ui-switch); in the filter panel they are chips
+  .checkbox-container {
+    position: relative;
+    @include ui-switch;
+  }
+  .search-panel .checkbox-container {
+    @include ui-toggle;
+  }
+
+  // ---- settings: one card per group, compact rows, no divider lines
+  .preferences {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    form > .pref-section + .pref-section, form > div > .pref-section + .pref-section { margin-top: 16px; }
+    .pref-section {
+      @include ui-card(20px);
+      margin: 0 0 16px;
+    }
+    legend {
+      @include ui-card-title(16px);
+      float: left;
+      width: 100%;
+      margin: 0 0 4px;
+      padding: 0;
+      border: 0;
+      & + * { clear: both; }
+    }
+    .pref-group { display: block; }
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      min-height: 32px;
+      margin: 0;
+      padding: 0 52px 0 8px;
+      border: 0;
+      border-radius: var(--x_radius_sm);
+      font-size: 14px;
+      line-height: 20px;
+      &:hover { background: var(--accent_soft); }
+    }
+    .pref-input {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 0;
+      margin: 0 !important;
+      padding: 2px 8px;
+      border: 0;
+      border-radius: var(--x_radius_sm);
+      &:hover { background: var(--accent_soft); }
+      label { padding: 0; font-size: 14px; line-height: 20px; }
+      select,
+      input[type="text"],
+      input[type="number"] {
+        position: static;
+        flex: none;
+        width: 200px;
+        max-width: 50%;
+      }
+      input[type="text"], input[type="number"] { @include ui-control(32px); }
+      select { @include ui-select(32px); }
+    }
+    .prefs-code {
+      margin: 0 0 8px;
+      padding: 8px 12px;
+      border: 1px solid var(--border_grey);
+      border-radius: var(--x_radius_sm);
+      background: var(--bg_color);
+      font-size: 13px;
+      overflow-x: auto;
+    }
+    .bookmark-note { margin: 0 0 8px; color: var(--fg_faded); font-size: 14px; line-height: 20px; }
+    .pref-submit { @include ui-button(default); margin-top: 4px; }
+    // pref-reset is the <form>, so the outline button look goes on the <button>
+    // inside it; the form itself stays a bare wrapper
+    .pref-reset { margin-top: 8px; padding: 0; border: 0; background: transparent; box-shadow: none; }
+    .pref-reset button { @include ui-button(outline); float: none; }
+    .note {
+      margin: 4px 0 16px;
+      padding: 0 4px;
+      border: 0;
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--fg_faded);
+    }
+  }
+  .preferences-container button, .pref-reset { float: none; }
+  // phones: the control keeps its place on the same line as its label
+  @media (max-width: 600px) {
+    .preferences .pref-input { gap: 8px; }
+    .preferences .pref-input label { min-width: 0; flex: 1 1 auto; }
+    .preferences .pref-input select,
+    .preferences .pref-input input { width: 46%; min-width: 0; max-width: 46%; flex: none; }
+  }
+
+  // ---- B7 an avatar is a tinted round slot until its image has loaded
+  img.avatar {
+    background: var(--bg_elements);
+    border: 1px solid var(--border_grey);
+    box-sizing: border-box;
+  }
+}

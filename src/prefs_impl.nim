@@ -51,7 +51,7 @@ macro genPrefs*(prefDsl: untyped) =
 
 genPrefs:
   Display:
-    theme(select, "Nitter"):
+    theme(select, "X"):
       "Theme"
 
     language(select, "English"):
@@ -120,15 +120,15 @@ genPrefs:
 
   "Link replacements (blank to disable)":
     replaceTwitter(input, ""):
-      "Twitter -> Nitter"
+      "Twitter → Nitter"
       placeholder: "Nitter hostname"
 
     replaceYouTube(input, ""):
-      "YouTube -> Piped/Invidious"
+      "YouTube → Piped/Invidious"
       placeholder: "Piped hostname"
 
     replaceReddit(input, ""):
-      "Reddit -> Teddit/Libreddit"
+      "Reddit → Teddit/Libreddit"
       placeholder: "Teddit hostname"
 
 iterator allPrefs*(): Pref =

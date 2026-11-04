@@ -10,10 +10,12 @@ macro renderPrefs*(): untyped =
     ident("buildHtml"), ident("tdiv"), nnkStmtList.newTree())
 
   for header, options in prefList:
-    result[2].add nnkCall.newTree(
-      ident("legend"),
-      nnkStmtList.newTree(
-        nnkCommand.newTree(ident("text"), newLit(header))))
+    # one wrapper per group, so a theme can draw the group as a card
+    var section = nnkStmtList.newTree(
+      nnkCall.newTree(
+        ident("legend"),
+        nnkStmtList.newTree(
+          nnkCommand.newTree(ident("text"), newLit(header)))))
 
     for pref in options:
       let procName = ident("gen" & capitalizeAscii($pref.kind))
@@ -30,7 +32,12 @@ macro renderPrefs*(): untyped =
         else:
           stmt[0].add newLit(pref.options)
 
-      result[2].add stmt
+      section.add stmt
+
+    result[2].add nnkCall.newTree(
+      ident("tdiv"),
+      nnkExprEqExpr.newTree(ident("class"), newLit("pref-section")),
+      section)
 
 proc renderPreferences*(prefs: Prefs; path: string; themes: seq[string];
                         prefsUrl: string): VNode =
@@ -41,13 +48,14 @@ proc renderPreferences*(prefs: Prefs; path: string; themes: seq[string];
 
         renderPrefs()
 
-        legend: text "Bookmark"
-        p(class="bookmark-note"):
-          text "Save this URL to restore your preferences (?prefs works on all pages)"
-        pre(class="prefs-code"):
-          text prefsUrl
-        p(class="bookmark-note"):
-          verbatim "You can override preferences with query parameters (e.g. <code>?hlsPlayback=on</code>). These overrides aren't saved to cookies, and links won't retain the parameters. Intended for configuring RSS feeds and other cookieless environments. Hover over a preference to see its name."
+        tdiv(class="pref-section"):
+          legend: text "Bookmark"
+          p(class="bookmark-note"):
+            text "Save this URL to restore your preferences (?prefs works on all pages)"
+          pre(class="prefs-code"):
+            text prefsUrl
+          p(class="bookmark-note"):
+            verbatim "You can override preferences with query parameters (e.g. <code>?hlsPlayback=on</code>). These overrides aren't saved to cookies, and links won't retain the parameters. Intended for configuring RSS feeds and other cookieless environments. Hover over a preference to see its name."
 
         h4(class="note"):
           text "Preferences are stored client-side using cookies without any personal information."

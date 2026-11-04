@@ -1,0 +1,189 @@
+// "X" theme: a layout and interaction style inspired by the X web client.
+// Everything is scoped to body.theme-x so other themes are untouched.
+$x_font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+  Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+body.theme-x {
+  font-family: $x_font, fontello;
+  font-size: 14px;
+  line-height: 1.43;
+  -webkit-font-smoothing: antialiased;
+
+  a:hover { text-decoration: none; }
+
+  // ---- one centred column, no side lines: the three columns are separated by space
+  // the gallery marks `media-only` on .profile-tabs (profile) or on the container
+  // itself (search); both keep the upstream full-width layout
+  .container > .timeline-container:not(.media-only),
+  .profile-tabs:not(.media-only) .timeline-container {
+    box-sizing: border-box;
+    max-width: 600px;
+    background: var(--bg_panel);
+    min-height: 100vh;
+  }
+  .timeline-container.media-only, .profile-tabs.media-only { border: 0; }
+  .conversation, .edit-history {
+    box-sizing: border-box;
+    max-width: 600px;
+    min-height: 100vh;
+  }
+
+  // No lines between rows: the rows are told apart by spacing and by the
+  // rounded fill on hover. Each row is inset 8px so that fill has room to curve.
+  .timeline > div { border-top: 0; }
+
+  // ---- tweet row
+  // The hover fill is inset by 8px on each side and rounded with the theme's
+  // --x_radius_sm (derived from --radius), so a theme restyles it by changing
+  // its radius token. margin 8 + padding 8 keeps the content where it was.
+  .timeline-item {
+    margin: 0 8px;
+    padding: 12px 8px;
+    border-radius: var(--x_radius_sm);
+    background: transparent;
+    transition: background-color 0.15s;
+  }
+  .timeline-item:hover { background-color: var(--x_hover_bg); }
+  // the grid and gallery lay the items out themselves
+  .timeline.media-grid-view .timeline-item,
+  .timeline.media-gallery-view .timeline-item { margin: 0; padding: 0; }
+  .tweet-link:hover { background-color: transparent; }
+
+  .tweet-body { margin-left: 52px; }
+  // media keeps a soft placeholder while the image is on its way
+  .attachments img, .gallery-row img, .still-image img, .video-container {
+    background: var(--bg_elements);
+  }
+  .tweet-avatar img {
+    width: 40px;
+    height: 40px;
+    margin-top: 0;
+    margin-left: -52px;
+  }
+
+  .tweet-header { margin-bottom: 2px; }
+  .tweet-name-row {
+    justify-content: flex-start;
+    align-items: baseline;
+    .fullname-and-username { flex: 0 1 auto; }
+    .tweet-date { margin-left: 0; flex: 0 0 auto; }
+  }
+  .fullname {
+    font-size: 14px;
+    font-weight: 600;
+    max-width: 70%;
+    &:hover { text-decoration: underline; }
+  }
+  .username, .tweet-date a { color: var(--fg_faded); font-size: 14px; }
+  .tweet-date a:hover { text-decoration: underline; }
+  .tweet-date::before { content: "\00b7"; margin: 0 4px; color: var(--fg_faded); }
+
+  .tweet-content { font-size: 14px; line-height: 1.43; }
+  .replying-to { color: var(--fg_faded); margin: 0 0 2px; }
+  .replying-to a, .tweet-content a { color: var(--accent); }
+  .tweet-content a:hover { text-decoration: underline; }
+
+  .retweet-header, .pinned {
+    color: var(--fg_faded);
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 2px !important;
+  }
+
+  // ---- media and quotes
+  .attachments, .gallery-row, .still-image, .card, .quote {
+    border-radius: 16px;
+  }
+  .attachments { border: 1px solid var(--border_grey); margin-top: 12px; }
+  .quote {
+    border: 1px solid var(--border_grey);
+    background: transparent;
+    margin-top: 12px;
+    &:hover { background: var(--x_hover_bg); }
+  }
+  .card { border: 1px solid var(--border_grey); }
+
+  // ---- action row: evenly spread, grey, coloured on hover
+  .tweet-stats {
+    justify-content: space-between;
+    max-width: 425px;
+    margin: 12px 0 0;
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--fg_faded);
+  }
+  .tweet-stat {
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+    flex: 1 1 0;
+    transition: color 0.15s;
+    .icon-container { display: inline-flex; align-items: center; gap: 4px; }
+    [class^="icon-"]:before { margin: 0 4px 0 0; }
+  }
+  .tweet-stat:nth-child(1):hover { color: var(--x_reply); }
+  .tweet-stat:nth-child(2):hover { color: var(--x_repost); }
+  .tweet-stat:nth-child(3):hover { color: var(--x_like); }
+  .tweet-stat:nth-child(4):hover { color: var(--x_reply); }
+
+  // ---- focused tweet on the status page
+  .main-tweet {
+    .timeline-item { padding-bottom: 4px; }
+    .tweet-content { font-size: 16px; line-height: 1.5; }
+    .fullname { font-size: 15px; }
+    .tweet-date { display: none; }
+    .tweet-published {
+      margin: 16px 0 0;
+      padding-bottom: 16px;
+      font-size: 14px;
+    }
+    .tweet-stats {
+      max-width: none;
+      margin: 0;
+      padding: 4px 0;
+    }
+    .tweet-stats { justify-content: flex-start; flex-wrap: nowrap; gap: 0 20px; }
+    .tweet-stat { white-space: nowrap; }
+    .tweet-stat { font-size: 14px; flex: 0 0 auto; }
+  }
+  .tweet-published { color: var(--fg_faded); }
+
+  // ---- reply sort strip and spacing between thread blocks
+  .reply-sort {
+    margin: 0;
+    padding: 12px 16px;
+    background: transparent;
+  }
+  .main-thread, .latest-edit { margin-bottom: 0; }
+  .main-tweet { border-bottom: 8px solid var(--bg_elements); }
+  .reply-sort {
+    font-size: 14px;
+    color: var(--fg_faded);
+    a { color: var(--fg_faded); font-weight: 600; &:hover { color: var(--fg_color); } }
+    .active, a.active { color: var(--fg_color); border-bottom: 2px solid var(--accent); }
+  }
+  .reply { margin-bottom: 0; border-top: 0; }
+
+  // ---- thread connector: a thin neutral line behind the avatars
+  .thread-line {
+    .timeline-item::before,
+    &.timeline-item::before { background: var(--dark_grey); }
+  }
+
+  // timeline rows on phones: let the four counters share the width and never
+  // clip a large number (the counters used to be fixed-width cells)
+  @media (max-width: 600px) {
+    .tweet-stats { max-width: none; }
+    .tweet-stat {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: visible;
+      font-size: 13px;
+    }
+    .tweet-stats { gap: 0 4px; }
+    .main-tweet .tweet-stats { gap: 0 12px; }
+    .main-tweet .tweet-stat { font-size: 14px; }
+    .main-tweet .tweet-stat [class^="icon-"]:before { margin-right: 3px; }
+  }
+}

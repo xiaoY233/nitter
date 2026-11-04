@@ -1,0 +1,334 @@
+// "X" theme component specs, written once and reused by the other x/ files.
+//
+// The values follow the shadcn/ui "new-york-v4" component sources (button,
+// input, select, switch, badge, kbd, card, tabs, sidebar menu button) with the
+// tweakcn "Twitter" theme tokens (--radius 1.3rem, 14px text, 36px controls).
+// Only the sizes, states and structure are reused; there is no shadcn or
+// tweakcn code in this repository. docs/ui-system.md lists each source class.
+//
+// Radii (shadcn: sm = radius - 4, md = radius - 2, lg = radius, xl = radius + 4):
+//   controls  var(--x_radius_sm)  18.8px   cards  var(--x_radius)  24.8px
+
+// focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50
+@mixin ui-ring {
+  outline: 0;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 40%, transparent);
+}
+
+// ---- Input / Select: h-9 px-3 py-1 text-sm rounded-md border bg-transparent
+@mixin ui-control($height: 36px) {
+  box-sizing: border-box;
+  height: $height;
+  padding: 4px 12px;
+  border: 1px solid var(--border_grey);
+  border-radius: var(--x_radius_sm);
+  background-color: var(--bg_color);
+  color: var(--fg_color);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+  &::placeholder { color: var(--fg_faded); }
+  &:hover { border-color: var(--fg_faded); }
+  &:focus, &:focus-visible { @include ui-ring; }
+}
+
+// native <select>: the chevron replaces the platform arrow
+@mixin ui-select($height: 36px) {
+  @include ui-control($height);
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2371767B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+}
+
+// ---- Button: inline-flex items-center justify-center gap-2 text-sm font-medium
+// rounded-md; sizes default h-9 px-4, sm h-8 px-3, icon size-9
+@mixin ui-button($variant: default, $size: default) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: 8px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: var(--x_radius_sm);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+  &:focus-visible { @include ui-ring; }
+  &:disabled { opacity: 0.5; pointer-events: none; }
+  @if $size == default { height: 36px; padding: 8px 16px; }
+  @if $size == sm { height: 32px; padding: 6px 12px; }
+  @if $size == icon { width: 36px; height: 36px; padding: 0; }
+  @if $size == icon-sm { width: 32px; height: 32px; padding: 0; }
+  @if $variant == default {
+    background: var(--primary);
+    color: var(--on_primary);
+    &:hover { background: color-mix(in srgb, var(--primary) 90%, var(--fg_color)); }
+  }
+  @if $variant == secondary {
+    background: var(--fg_color);
+    color: var(--bg_color);
+    &:hover { background: color-mix(in srgb, var(--fg_color) 85%, var(--bg_color)); }
+  }
+  @if $variant == outline {
+    border-color: var(--border_grey);
+    background: var(--bg_color);
+    color: var(--fg_color);
+    &:hover { background: var(--accent_soft); color: var(--accent); }
+  }
+  @if $variant == ghost {
+    background: transparent;
+    color: var(--fg_color);
+    &:hover { background: var(--accent_soft); color: var(--accent); }
+  }
+}
+
+// ---- Switch: h-[1.15rem] w-8 rounded-full, thumb size-4, primary when checked.
+// Markup is the upstream checkbox: label > input + span.checkbox
+@mixin ui-switch {
+  .checkbox {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    left: auto;
+    width: 32px;
+    height: 18px;
+    margin-top: -9px;
+    box-sizing: border-box;
+    border: 0;
+    border-radius: 9999px;
+    background: var(--switch_off);
+    transition: background-color 0.15s, box-shadow 0.15s;
+    &:after {
+      content: "";
+      position: absolute;
+      display: block;
+      left: 2px;
+      top: 2px;
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      border: 0;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      transform: translateX(0);
+      transition: transform 0.15s;
+    }
+  }
+  input:checked ~ .checkbox { background: var(--primary); border: 0; }
+  input:checked ~ .checkbox:after { transform: translateX(14px); }
+  input:focus-visible ~ .checkbox { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 40%, transparent); }
+}
+
+// ---- Toggle (outline): a checkbox shown as a pill that fills when on
+@mixin ui-toggle {
+  // shadcn Toggle, default variant: no border, 36px, rounded-md; muted fill when
+  // off so the label can be read, primary fill when on
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 32px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--x_radius_sm);
+  background: color-mix(in srgb, var(--fg_color) 6%, var(--bg_color));
+  color: var(--fg_color);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+  &:hover { background: var(--accent_soft); color: var(--accent); }
+  .checkbox { display: none; }
+  &:has(input:checked) { background: var(--primary); color: var(--on_primary); }
+  &:has(input:focus-visible) { @include ui-ring; }
+}
+
+// ---- Badge / Kbd: inline-flex rounded-full px-2 py-0.5 text-xs font-medium
+@mixin ui-badge {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 1px 8px;
+  border: 0;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--fg_color) 7%, var(--bg_color));
+  color: var(--fg_color);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+// ---- Card: rounded-xl border bg-card py-6 px-6, title font-semibold, text-sm
+// description. $pad is 24px in the main column, 20px in the narrow side column.
+@mixin ui-card($pad: 24px) {
+  box-sizing: border-box;
+  padding: $pad;
+  border: 1px solid var(--border_grey);
+  border-radius: var(--x_radius);
+  background: var(--bg_elements);
+  color: var(--fg_color);
+}
+@mixin ui-card-title($size: 16px) {
+  margin: 0 0 16px;
+  font-size: $size;
+  font-weight: 600;
+  line-height: 1.25;
+}
+@mixin ui-card-description {
+  color: var(--fg_faded);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+// ---- Tabs (shadcn): the list is a muted rounded track, h-9 p-[3px]; a trigger is
+// h-[calc(100%-1px)] px-2 py-1 text-sm font-medium text-foreground/60; the active
+// trigger is bg-background text-foreground with a shadow-sm.
+@mixin ui-tabs-list {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  height: 36px;
+  padding: 3px;
+  border-radius: var(--x_radius_sm);
+  background: color-mix(in srgb, var(--fg_color) 7%, var(--bg_color));
+}
+@mixin ui-tabs-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 30px;
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--x_radius_sm) - 3px);
+  color: color-mix(in srgb, var(--fg_color) 72%, var(--bg_color));
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+  &:hover { color: var(--fg_color); text-decoration: none; }
+  &:focus-visible { outline: 0; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 40%, transparent); }
+}
+@mixin ui-tabs-active {
+  background: var(--bg_color);
+  color: var(--fg_color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  &:hover { background: var(--bg_color); color: var(--fg_color); }
+}
+
+// ---- Sidebar menu button: rounded-md p-2 text-sm font-medium; hover and active
+// use the accent colours (active also gets font-medium)
+@mixin ui-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  color: var(--fg_color);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  transition: background-color 0.15s, color 0.15s;
+  &:hover { background: var(--accent_soft); color: var(--accent); }
+  &.active { background: var(--accent_soft); color: var(--accent); }
+  &:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 40%, transparent); }
+}
+
+// ---- Dropdown menu items (shadcn DropdownMenuLabel / RadioItem / Separator):
+// label px-2 py-1.5 text-sm font-medium, item rounded-sm px-2 py-1.5 pl-8
+// text-sm with the check at the left, hover = accent, separator -mx-1 my-1 h-px
+@mixin ui-menu-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--fg_color);
+  .x-svg { flex: none; width: 16px; height: 16px; color: var(--fg_faded); }
+}
+@mixin ui-menu-radio {
+  position: relative;
+  float: none; // upstream floats every <button> to the right
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: calc(var(--x_radius_sm) - 8px);
+  background: transparent;
+  color: var(--fg_color);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+  &:hover, &:focus-visible { outline: 0; background: var(--accent_soft); color: var(--accent); }
+  .x-menu-icon {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    color: var(--fg_faded);
+    .x-svg { width: 16px; height: 16px; color: inherit; }
+    .x-menu-glyph { font-size: 13px; font-weight: 600; line-height: 16px; }
+  }
+  &:hover .x-menu-icon, &:focus-visible .x-menu-icon { color: inherit; }
+  .x-menu-text { flex: 1 1 auto; }
+  .x-menu-check {
+    display: none;
+    flex: none;
+    margin-left: auto;
+    .x-svg { width: 16px; height: 16px; color: inherit; }
+  }
+  &[data-state="on"] .x-menu-check { display: flex; }
+  &[data-state="on"] { font-weight: 500; }
+}
+
+// ---- Dropdown panel (shadcn DropdownMenuContent): rounded-md border bg-popover
+// p-1 shadow-md; rows are px-2 py-1.5 text-sm, hover = accent
+@mixin ui-popover {
+  box-sizing: border-box;
+  padding: 4px;
+  border: 1px solid var(--border_grey);
+  border-radius: var(--x_radius_sm);
+  background: var(--bg_color);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+// ---- Card header (shadcn CardHeader / CardTitle / CardDescription /
+// CardAction): a grid with gap-2, the title is font-semibold leading-none, the
+// description is text-sm muted, the action sits at the top-right.
+@mixin ui-card-header($gap: 24px) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 $gap;
+  h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 24px; }
+  p { margin: 0; @include ui-card-description; }
+}

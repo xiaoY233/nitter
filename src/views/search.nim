@@ -2,7 +2,7 @@
 import strutils, strformat, sequtils, unicode, tables, options
 import karax/[karaxdsl, vdom]
 
-import renderutils, timeline
+import renderutils, timeline, xtheme
 import ".."/[types, query]
 
 const toggles = {
@@ -18,15 +18,24 @@ const toggles = {
   "spaces": "Spaces"
 }.toOrderedTable
 
+proc submitButton*(): VNode =
+  ## The search boxes have no visible button, but a form still needs a submit
+  ## control: without one, Enter does nothing and the filter ticks are lost.
+  buildHtml(button(`type`="submit", class="x-search-submit", tabindex="-1",
+                   `aria-hidden`="true")):
+    text "Search"
+
 proc renderSearch*(): VNode =
   buildHtml(tdiv(class="panel-container")):
     tdiv(class="search-bar"):
-      form(`method`="get", action="/search", autocomplete="off"):
+      form(`method`="get", action="/search", class="x-search", autocomplete="off"):
         hiddenField("f", "tweets")
-        input(`type`="text", name="q", autofocus="",
-              placeholder="Search...", dir="auto")
-        button(`type`="submit"): icon "search"
-
+        label(class="x-search-inner"):
+          span(class="x-search-icon"): verbatim searchIcon
+          input(`type`="text", name="q", autofocus="",
+            placeholder="Search", dir="auto")
+        submitButton()
+    
 proc renderProfileTabs*(query: Query; username: string): VNode =
   let link = "/" & username
   buildHtml(ul(class="tab")):
@@ -40,7 +49,7 @@ proc renderProfileTabs*(query: Query; username: string): VNode =
       li(class=query.getTabClass(QueryKind.articles)):
         a(href=(link & "/articles")): text "Articles"
     li(class=query.getTabClass(tweets)):
-      a(href=(link & "/search")): text "Search"
+      a(href=(link & "/search")): text "Search posts"
 
 proc mediaViewUrl(query: Query; view: string): string =
   var q = query
@@ -90,13 +99,17 @@ proc renderSearchPanel*(query: Query): VNode =
   let user = query.fromUser.join(",")
   let action = if user.len > 0: &"/{user}/search" else: "/search"
   buildHtml(form(`method`="get", action=action,
-                 class="search-field", autocomplete="off")):
+                 class="search-field x-search", autocomplete="off")):
     hiddenField("f", $query.kind)
-    genInput("q", "", query.text, "Enter search...", class="pref-inline")
-    button(`type`="submit"): icon "search"
+    label(class="x-search-inner"):
+      span(class="x-search-icon"): verbatim searchIcon
+      input(`type`="text", name="q", value=query.text, dir="auto",
+            placeholder="Search")
+    submitButton()
 
     input(id="search-panel-toggle", `type`="checkbox", checked=isPanelOpen(query))
-    label(`for`="search-panel-toggle"): icon "down"
+    label(`for`="search-panel-toggle", class="x-filter-toggle", title="Filters"):
+      verbatim filterIcon
 
     tdiv(class="search-panel"):
       for f in @["filter", "exclude"]:
@@ -118,6 +131,31 @@ proc renderSearchPanel*(query: Query): VNode =
         tdiv:
           span(class="search-title"): text "Minimum likes"
           genNumberInput("min_faves", "", query.minLikes, "Number...", autofocus=false)
+
+proc renderSearchPrompt(kind: QueryKind): VNode =
+  ## Shown before anything is searched: a centred empty state (shadcn Empty).
+  ## The syntax help lives in the right-hand "Search Tips" card; that column is
+  ## hidden on narrow screens, so the few examples reappear here, only there.
+  buildHtml(tdiv(class="x-empty")):
+    span(class="x-empty-icon"): verbatim searchIcon
+    case kind
+    of users:
+      h2: text "Find accounts"
+      p: text "Type a name or username above."
+    of lists:
+      h2: text "Find lists"
+      p: text "Type a word above."
+    of media:
+      h2: text "Find pictures and videos"
+      p: text "Type a word, phrase or hashtag above."
+    else:
+      h2: text "Search posts"
+      p: text "Type a word, phrase or hashtag above."
+    if kind in {tweets, top, media}:
+      tdiv(class="x-empty-tips"):
+        code: text "from:jack"
+        code: text "\"exact phrase\""
+        code: text "#nim"
 
 proc renderTweetSearch*(results: Timeline; prefs: Prefs; path: string;
                         pinned=none(Tweet)): VNode =
@@ -146,14 +184,20 @@ proc renderTweetSearch*(results: Timeline; prefs: Prefs; path: string;
       if query.kind == QueryKind.media:
         renderMediaViewTabs(query)
 
-    renderTimelineTweets(results, prefs, path, pinned)
+    if query.fromUser.len == 0 and query.isBlank:
+      renderSearchPrompt(query.kind)
+    else:
+      renderTimelineTweets(results, prefs, path, pinned)
 
 proc renderSearchForm(kind, placeholder, value: string): VNode =
   buildHtml(form(`method`="get", action="/search",
-                 class="search-field", autocomplete="off")):
+                 class="search-field x-search", autocomplete="off")):
     hiddenField("f", kind)
-    genInput("q", "", value, placeholder, class="pref-inline")
-    button(`type`="submit"): icon "search"
+    label(class="x-search-inner"):
+      span(class="x-search-icon"): verbatim searchIcon
+      input(`type`="text", name="q", value=value, dir="auto",
+            placeholder=placeholder)
+    submitButton()
 
 proc renderUserSearch*(results: Result[User]; prefs: Prefs): VNode =
   buildHtml(tdiv(class="timeline-container")):
@@ -161,7 +205,10 @@ proc renderUserSearch*(results: Result[User]; prefs: Prefs): VNode =
       renderSearchForm("users", "Enter username...", results.query.text)
 
     renderSearchTabs(results.query)
-    renderTimelineUsers(results, prefs)
+    if results.query.isBlank:
+      renderSearchPrompt(users)
+    else:
+      renderTimelineUsers(results, prefs)
 
 proc renderListSearch*(results: Result[ListSearchResult]; prefs: Prefs;
                        path: string): VNode =
@@ -170,4 +217,7 @@ proc renderListSearch*(results: Result[ListSearchResult]; prefs: Prefs;
       renderSearchForm("lists", "Enter search...", results.query.text)
 
     renderSearchTabs(results.query)
-    renderTimelineLists(results, prefs, path)
+    if results.query.isBlank:
+      renderSearchPrompt(lists)
+    else:
+      renderTimelineLists(results, prefs, path)

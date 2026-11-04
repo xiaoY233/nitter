@@ -1,0 +1,178 @@
+/* "X" theme: a layout and colour scheme inspired by the X web client.
+   The palette follows the "Twitter" theme by QJ BAO on tweakcn.com (colours
+   only; no code from it). Icons and fonts are original; no X brand assets are
+   used. Light by default, dark when the system asks for it. The component
+   styles live in src/sass/x and only apply under body.theme-x. */
+body {
+    --bg_color: #FFFFFF;
+    --fg_color: #0F1419;
+    --fg_faded: #536471;
+    --fg_dark: var(--fg_faded);
+    --fg_nav: var(--fg_color);
+
+    --bg_panel: #FFFFFF;
+    --bg_elements: #F7F8F8;
+    --bg_overlays: #FFFFFF;
+    --bg_hover: #F7F8F8;
+
+    --grey: var(--fg_faded);
+    --dark_grey: #CBD8E0;
+    --darker_grey: #CBD8E0;
+    --darkest_grey: #E1EAEF;
+    --border_grey: #E1EAEF;
+
+    /* --primary fills buttons, chips and active marks. --accent is for text
+       and thin lines, where the lighter blue would be too faint on white. */
+    --primary: #1E9DF1;
+    --on_primary: #0F1419;
+    --accent: #1170B3;
+    --accent_light: #1170B3;
+    --accent_dark: #1170B3;
+    --accent_border: #1170B3;
+    --accent_soft: #EAF3FB;
+    --ring: #1DA1F2;
+    --switch_off: #CBD8E0;
+
+    --play_button: var(--primary);
+    --play_button_hover: #1A8CD8;
+
+    --more_replies_dots: var(--accent);
+    --error_red: #F4212E;
+
+    --verified_blue: #1E9DF1;
+    --icon_text: #FFFFFF;
+
+    --tab: var(--fg_faded);
+    --tab_selected: var(--fg_color);
+
+    --profile_stat: var(--fg_color);
+
+    --x_like: #E0245E;
+    --x_repost: #17BF63;
+    --x_reply: var(--accent);
+    --x_hover_bg: #EEF3F7;
+    --x_blur_bg: rgba(255, 255, 255, 0.85);
+
+    --radius: 1.3rem;
+    --x_radius: calc(var(--radius) + 4px);
+    --x_radius_sm: calc(var(--radius) - 2px);
+}
+
+/* without the script, the system setting alone decides */
+:root { color-scheme: light dark; }
+
+@media (prefers-color-scheme: dark) {
+    body {
+        --bg_color: #000000;
+        --fg_color: #E7E9EA;
+        --fg_faded: #8B9096;
+        --bg_panel: #000000;
+        --bg_elements: #17181C;
+        --bg_overlays: #000000;
+        --bg_hover: #17181C;
+        --dark_grey: #242628;
+        --darker_grey: #242628;
+        --darkest_grey: #17181C;
+        --border_grey: #242628;
+        --primary: #1C9CF0;
+        --on_primary: #000000;
+        --accent: #1C9CF0;
+        --accent_light: #1C9CF0;
+        --accent_dark: #1C9CF0;
+        --accent_border: #1C9CF0;
+        --accent_soft: #061622;
+        --switch_off: #3A3D42;
+        --play_button_hover: #1A8CD8;
+        --error_red: #F4212E;
+        --verified_blue: #1C9CF0;
+        --icon_text: #000000;
+        --x_hover_bg: #0E1114;
+        --x_blur_bg: rgba(0, 0, 0, 0.65);
+    }
+}
+
+/* the "t" shortcut and the theme button: an explicit choice overrides the
+   system setting. Only set by public/js/xtheme.js, so it has no effect when
+   the script is off. */
+html[data-x-scheme="dark"] body {
+    --bg_color: #000000;
+    --fg_color: #E7E9EA;
+    --fg_faded: #8B9096;
+    --bg_panel: #000000;
+    --bg_elements: #17181C;
+    --bg_overlays: #000000;
+    --bg_hover: #17181C;
+    --dark_grey: #242628;
+    --darker_grey: #242628;
+    --darkest_grey: #17181C;
+    --border_grey: #242628;
+    --primary: #1C9CF0;
+    --on_primary: #000000;
+    --accent: #1C9CF0;
+    --accent_light: #1C9CF0;
+    --accent_dark: #1C9CF0;
+    --accent_border: #1C9CF0;
+    --accent_soft: #061622;
+    --switch_off: #3A3D42;
+    --play_button_hover: #1A8CD8;
+    --error_red: #F4212E;
+    --verified_blue: #1C9CF0;
+    --icon_text: #000000;
+    --x_hover_bg: #0E1114;
+    --x_blur_bg: rgba(0, 0, 0, 0.65);
+}
+@media (prefers-color-scheme: dark) {
+    html[data-x-scheme="light"] body {
+        --bg_color: #FFFFFF;
+        --fg_color: #0F1419;
+        --fg_faded: #536471;
+        --fg_dark: var(--fg_faded);
+        --fg_nav: var(--fg_color);
+
+        --bg_panel: #FFFFFF;
+        --bg_elements: #F7F8F8;
+        --bg_overlays: #FFFFFF;
+        --bg_hover: #F7F8F8;
+
+        --grey: var(--fg_faded);
+        --dark_grey: #CBD8E0;
+        --darker_grey: #CBD8E0;
+        --darkest_grey: #E1EAEF;
+        --border_grey: #E1EAEF;
+
+        /* --primary fills buttons, chips and active marks. --accent is for text
+           and thin lines, where the lighter blue would be too faint on white. */
+        --primary: #1E9DF1;
+        --on_primary: #0F1419;
+        --accent: #1170B3;
+        --accent_light: #1170B3;
+        --accent_dark: #1170B3;
+        --accent_border: #1170B3;
+        --accent_soft: #EAF3FB;
+        --ring: #1DA1F2;
+        --switch_off: #CBD8E0;
+
+        --play_button: var(--primary);
+        --play_button_hover: #1A8CD8;
+
+        --more_replies_dots: var(--accent);
+        --error_red: #F4212E;
+
+        --verified_blue: #1E9DF1;
+        --icon_text: #FFFFFF;
+
+        --tab: var(--fg_faded);
+        --tab_selected: var(--fg_color);
+
+        --profile_stat: var(--fg_color);
+
+        --x_like: #E0245E;
+        --x_repost: #17BF63;
+        --x_reply: var(--accent);
+        --x_hover_bg: #EEF3F7;
+        --x_blur_bg: rgba(255, 255, 255, 0.85);
+
+            --x_radius: calc(var(--radius) + 4px);
+            --x_radius_sm: calc(var(--radius) - 2px);
+    }
+}

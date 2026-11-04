@@ -1,0 +1,452 @@
+// "X" theme page shell: left rail | content column | right column.
+// Only used when the theme is X (see src/views/xtheme.nim).
+$rail_w: 232px;
+$rail_w_narrow: 72px;
+$col_w: 600px;
+$aside_w: 350px;
+
+body.theme-x {
+  .x-layout {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, $col_w) 1fr;
+    min-height: 100vh;
+  }
+
+  // the content column keeps its own max-width; the grid centres it
+  .x-layout > .container {
+    grid-column: 2;
+    display: block;
+    min-width: 0;
+    min-height: 100vh;
+    margin: 0;
+  }
+  &.fixed-nav .x-layout > .container { padding-top: 0; }
+  .x-layout > .container > * { margin-left: auto; margin-right: auto; }
+  // the non-X home page (a bare search panel) pulls itself up under the old
+  // top bar; keep it inside the column without the empty space above
+  .x-layout > .container > .panel-container {
+    margin-top: 0;
+    padding-top: 16px;
+    font-size: 100%;
+  }
+  .error-panel { margin-top: 0; }
+  .x-nav .icon-info { margin: 0; }
+
+  // upstream sizes these with width: 100% plus padding; keep them inside the column
+  .overlay-panel, .panel-container { box-sizing: border-box; }
+
+  // ---- left rail
+  .x-nav {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: end;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    width: $rail_w;
+    box-sizing: border-box;
+    padding: 4px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    z-index: 10;
+  }
+
+  .x-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 4px;
+    border-radius: 9999px;
+    color: var(--fg_color);
+    font-size: 18px;
+    font-weight: 700;
+    transition: background-color 0.15s;
+    &:hover { background: var(--x_hover_bg); }
+  }
+  .x-brand-mark {
+    display: flex;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    color: var(--accent);
+    .x-brand-svg { width: 100%; height: 100%; }
+  }
+  .x-brand { padding-left: 14px; }
+
+  .x-nav-item.disabled { opacity: 0.35; pointer-events: none; cursor: default; }
+  .x-nav-item {
+    @include ui-menu-item;
+    width: 100%;
+  }
+  .x-nav-icon {
+    flex: none;
+    width: 20px;
+    text-align: center;
+    font-size: 18px;
+    line-height: 1;
+    color: inherit;
+  }
+  .x-svg { flex: none; width: 24px; height: 24px; color: var(--fg_color); }
+  .x-nav-item .x-svg { width: 20px; height: 20px; color: inherit; }
+  .x-nav-item .x-menu-chevron .x-svg { width: 16px; height: 16px; }
+
+  // ---- right column
+  .x-aside {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: start;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    width: $aside_w;
+    min-height: 100vh;
+    max-height: 100vh;
+    box-sizing: border-box;
+    padding: 0 24px 12px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  // ---- search box, shared by the home page, the aside and the search pages
+  // (the markup is .x-search > .x-search-inner > .x-search-icon + input [+ button])
+  .x-search {
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 560px;
+    position: relative;
+
+    // shadcn Input with a leading icon: 36px, radius-md, 1px border, ring on focus
+    .x-search-inner {
+      @include ui-control(36px);
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 0 12px;
+      cursor: text;
+      &:hover { border-color: var(--border_grey); }
+    }
+    .x-search-icon {
+      display: flex;
+      align-items: center;
+      flex: none;
+      margin-right: 8px;
+      color: var(--fg_faded);
+      .x-svg { width: 16px; height: 16px; }
+    }
+    input[type="text"] {
+      flex: 1 1 auto;
+      width: auto;
+      min-width: 0;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      color: var(--fg_color);
+      font-size: 14px;
+      &::placeholder { color: var(--fg_faded); }
+      &:focus { outline: none; background: transparent; }
+    }
+    &:focus-within .x-search-inner { @include ui-ring; }
+    label { margin: 0; }
+  }
+
+  // foot of the rail: a menu item that opens a panel upwards (shadcn
+  // SidebarFooter + DropdownMenu), holding the language and dark switches
+  .x-nav-foot {
+    position: relative;
+    margin-top: auto;
+    padding: 0 0 12px;
+    width: 100%;
+  }
+  .x-menu { position: relative; }
+  .x-menu-button {
+    width: 100%;
+    list-style: none;
+    cursor: pointer;
+    &::-webkit-details-marker { display: none; }
+    .x-menu-chevron { display: flex; margin-left: auto; color: var(--fg_faded); transition: transform 0.15s; .x-svg { width: 16px; height: 16px; color: inherit; } }
+  }
+  .x-menu[open] > .x-menu-button { background: var(--accent_soft); color: var(--accent); }
+  .x-menu[open] .x-menu-chevron { transform: rotate(180deg); }
+  .x-menu-panel {
+    @include ui-popover;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 4px);
+    z-index: 20;
+    min-width: 200px;
+  }
+  .x-menu-group { margin: 0; &[hidden] { display: none; } }
+  .x-menu-label { @include ui-menu-label; }
+  .x-menu-item { @include ui-menu-radio; }
+  .x-menu-sep { height: 1px; margin: 4px -4px; background: var(--border_grey); &[hidden] { display: none; } }
+
+  // present for the form, never seen
+  .x-search-submit {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .x-aside-search {
+    position: sticky;
+    top: 0;
+    padding: 12px 0 12px;
+    background: var(--bg_color);
+    z-index: 2;
+    .x-search-inner { height: 36px; }
+  }
+
+  // ---- aside cards: shadcn Card. 24px padding, header (title + muted
+  // description + optional action), then the content after a 24px gap.
+  .x-aside-card, .x-cloud {
+    @include ui-card(20px);
+    margin-top: 12px;
+    flex: none;
+    &[hidden] { display: none; }
+  }
+  .x-card-header { @include ui-card-header(12px); }
+  .x-cloud-clear {
+    @include ui-button(ghost, sm);
+    float: none;
+    height: 28px;
+    margin: 0 -8px 0 0;
+    padding: 0 10px;
+    color: var(--fg_faded);
+  }
+
+  // the words are placed by public/js/xtheme.js inside this box
+  .x-cloud-list {
+    position: relative;
+    width: 100%;
+    height: 210px;
+    overflow: hidden;
+  }
+  // a short window has no room for the taller cloud
+  @media (max-height: 880px) { .x-cloud-list { height: 150px; } }
+  .x-cloud-word {
+    position: absolute;
+    display: block;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: opacity 0.15s;
+    &[data-v] { transform-origin: 0 0; transform: rotate(-90deg); }
+    &:hover { opacity: 0.7; text-decoration: none; }
+  }
+
+  .x-aside-card {
+    ul { margin: 0; padding: 0; list-style: none; }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 0;
+      font-size: 14px;
+      line-height: 24px;
+      color: var(--fg_faded);
+    }
+    // inline code is a Badge / Kbd: rounded, muted fill, 12px/500, mono
+    code {
+      @include ui-badge;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: nowrap;
+    }
+    a:hover code { background: var(--accent_soft); color: var(--accent); }
+  }
+
+  .x-aside-tips dl {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px 12px;
+    margin: 0;
+    font-size: 14px;
+    line-height: 24px;
+    align-items: center;
+    dt { white-space: nowrap; }
+    dd { margin: 0; color: var(--fg_faded); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+
+  // ---- footer: small print, links that the rail does not have
+  .x-footer {
+    margin-top: auto;
+    padding: 8px 4px 0;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--fg_faded);
+  }
+  .x-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin-bottom: 0;
+    a {
+      float: none;
+      padding: 0;
+      border: 0;
+      color: var(--fg_faded);
+      &:hover { text-decoration: underline; }
+    }
+  }
+  .x-footer-note { margin: 0; }
+
+  // ---- home column. The three columns start on one line: the brand row (the
+  // logo is centred 30px from the top), the heading block (a 36px line centred
+  // on the same line) and the aside search box (36px, also centred there).
+  .x-home { padding: 12px 16px 40px; }
+  .x-home h1 {
+    margin: 0 0 8px;
+    padding: 0;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 36px;
+  }
+  .x-home-lead {
+    margin: 0 0 24px;
+    @include ui-card-description;
+  }
+
+  // shadcn Card: 24px padding, header, then content after a 24px gap
+  .x-card {
+    @include ui-card(24px);
+    margin: 0 0 16px;
+  }
+  .x-card .x-card-header { @include ui-card-header(16px); }
+  .x-card-note { margin: 0; @include ui-card-description; line-height: 22px; }
+  .x-card-note + .x-card-foot, .x-tools + .x-card-foot { margin-top: 16px; }
+  .x-card-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    code { @include ui-badge; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+    a:hover code { background: var(--accent_soft); color: var(--accent); }
+  }
+  .x-home-link { color: var(--accent); font-size: 14px; font-weight: 500; &:hover { text-decoration: underline; } }
+
+  // agents: icon + name chips, an outline Badge each
+  .x-agents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 16px;
+    padding: 0;
+    list-style: none;
+    li {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 36px;
+      box-sizing: border-box;
+      padding: 0 14px 0 10px;
+      border: 1px solid var(--border_grey);
+      border-radius: 9999px;
+      background: var(--bg_color);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    svg { flex: none; width: 20px; height: 20px; color: var(--fg_color); }
+  }
+
+  // the tool list: name on the left, one short phrase on the right
+  .x-tools {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px 16px;
+    margin: 0;
+    font-size: 14px;
+    line-height: 24px;
+    align-items: center;
+    dt { white-space: nowrap; }
+    dd { margin: 0; color: var(--fg_faded); }
+    code { @include ui-badge; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+  }
+
+  @media (max-width: 600px) {
+    .x-home h1 { font-size: 26px; line-height: 32px; }
+    .x-card { padding: 20px; }
+    .x-tools { grid-template-columns: 1fr; gap: 2px 0; }
+    .x-tools dd { margin-bottom: 10px; }
+  }
+
+  // ---- medium: icon-only rail, aside hidden when there is no room
+  @media (max-width: 1280px) {
+    .x-nav { width: $rail_w_narrow; align-items: center; padding: 4px 0; }
+    .x-nav-label { display: none; }
+    .x-nav-item { width: 40px; padding: 0; gap: 0; justify-content: center; }
+    .x-brand { padding: 10px; gap: 0; }
+    .x-nav-foot { display: flex; justify-content: center; }
+    .x-menu-button { width: 40px; padding: 0; justify-content: center; }
+    .x-menu-chevron { display: none !important; }
+    .x-menu-panel { left: 0; right: auto; width: 200px; }
+  }
+  @media (max-width: 1000px) {
+    .x-layout { grid-template-columns: $rail_w_narrow minmax(0, 1fr); }
+    .x-layout > .container { grid-column: 2; }
+    .x-nav { grid-column: 1; justify-self: stretch; width: auto; }
+    .x-aside { display: none; }
+  }
+
+  // ---- small: the rail becomes a bottom bar
+  @media (max-width: 600px) {
+    .x-layout { display: block; padding-bottom: 53px; }
+    .x-nav {
+      position: fixed;
+      top: auto;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: auto;
+      height: 53px;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0;
+      padding: 0 4px;
+      padding: 0;
+      background: var(--x_blur_bg);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border_grey);
+    }
+    .x-brand { display: none; }
+    // every bar item gets an equal share so the row is evenly spread
+    .x-nav-item {
+      flex: 1 1 0;
+      justify-content: center;
+      gap: 0;
+      padding: 0;
+    }
+    .x-nav-item .x-svg { width: 22px; height: 22px; }
+    .x-nav-item .x-nav-icon { font-size: 20px; }
+    .x-nav-label { display: none; }
+    .x-nav-item.disabled, .x-nav-rss { display: none; }
+    .x-nav-foot { width: auto; flex: 1 1 0; margin: 0; padding: 0; display: flex; justify-content: center; }
+    .x-menu-button { width: auto; }
+    .x-menu-panel { bottom: calc(100% + 12px); left: auto; right: 0; }
+    .x-nav-item { width: auto; }
+  }
+}

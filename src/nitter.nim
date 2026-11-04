@@ -7,7 +7,7 @@ from os import getEnv, normalizedPath
 import jester
 
 import types, config, prefs, formatters, redis_cache, http_pool, auth, apiutils
-import views/[general, about]
+import views/[general, about, xtheme]
 import routes/[
   preferences, timeline, status, media, search, rss, list, community, debug,
   unsupported, embed, resolver, broadcast, space, article, router_utils, api]
@@ -120,7 +120,11 @@ routes:
     applyUrlPrefs()
 
   get "/":
-    resp renderMain(renderSearch(), request, cfg, requestPrefs())
+    let prefs = requestPrefs()
+    let page =
+      if isTheme(activeTheme(prefs, cfg)): renderXHome(cfg, prefs, cfg.apiEnabled)
+      else: renderSearch()
+    resp renderMain(page, request, cfg, prefs)
 
   get "/about":
     resp renderMain(renderAbout(), request, cfg, requestPrefs())

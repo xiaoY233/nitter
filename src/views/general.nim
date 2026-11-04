@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-import uri, strutils, strformat
+import uri, strutils, strformat, os
 import karax/[karaxdsl, vdom]
 
-import renderutils
+import renderutils, xtheme
 import ../i18n
 import ../utils, ../types, ../prefs, ../formatters
 
@@ -15,11 +15,25 @@ const
 proc toTheme(theme: string): string =
   theme.toLowerAscii.replace(" ", "_")
 
+proc themeExists(dir, theme: string): bool =
+  ## themes are the stylesheets in <staticDir>/css/themes; a stored preference
+  ## can name one that has been removed since
+  theme.len > 0 and fileExists(dir / "css" / "themes" / (theme & ".css"))
+
+proc activeTheme*(prefs: Prefs; cfg: Config): string =
+  ## the stored theme if its stylesheet exists, otherwise the default one
+  result = prefs.theme.toTheme
+  if not themeExists(cfg.staticDir, result):
+    result = defaultPrefs.theme.toTheme
+
+proc settingsReferer(req: Request): string =
+  result = req.params.getOrDefault("referer")
+  if result.len == 0:
+    result = $(parseUri(req.path) ? filterParams(req.params))
+    if "/status/" in result: result.add "#m"
+
 proc renderNavbar(cfg: Config; req: Request; rss, canonical: string): VNode =
-  var path = req.params.getOrDefault("referer")
-  if path.len == 0:
-    path = $(parseUri(req.path) ? filterParams(req.params))
-    if "/status/" in path: path.add "#m"
+  let path = settingsReferer(req)
 
   buildHtml(nav):
     tdiv(class="inner-nav"):
@@ -40,7 +54,7 @@ proc renderNavbar(cfg: Config; req: Request; rss, canonical: string): VNode =
 proc renderHead*(prefs: Prefs; cfg: Config; req: Request; titleText=""; desc="";
                  video=""; images: seq[string] = @[]; banner=""; ogTitle="";
                  rss=""; alternate=""; oembed=""): VNode =
-  let theme = prefs.theme.toTheme
+  let theme = activeTheme(prefs, cfg)
     
   let ogType =
     if video.len > 0: "video"
@@ -51,11 +65,11 @@ proc renderHead*(prefs: Prefs; cfg: Config; req: Request; titleText=""; desc="";
   let opensearchUrl = getUrlPrefix(cfg) & "/opensearch"
 
   buildHtml(head):
-    link(rel="stylesheet", type="text/css", href="/css/style.css?v=106")
+    link(rel="stylesheet", type="text/css", href="/css/style.css?v=162")
     link(rel="stylesheet", type="text/css", href="/css/fontello.css?v=7")
 
     if theme.len > 0:
-      link(rel="stylesheet", type="text/css", href=(&"/css/themes/{theme}.css"))
+      link(rel="stylesheet", type="text/css", href=(&"/css/themes/{theme}.css?v=7"))
 
     link(rel="apple-touch-icon", sizes="180x180", href="/apple-touch-icon.png")
     link(rel="icon", type="image/png", sizes="32x32", href="/favicon-32x32.png")
@@ -141,12 +155,20 @@ proc renderMain*(body: VNode; req: Request; cfg: Config; prefs=defaultPrefs;
     renderHead(prefs, cfg, req, titleText, desc, video, images, banner, ogTitle,
                rss, twitterLink, oembed)
 
-    let bodyClass = if prefs.stickyNav: "fixed-nav" else: ""
+    var bodyClass = if prefs.stickyNav: "fixed-nav" else: ""
+    let theme = activeTheme(prefs, cfg)
+    # lets theme-specific stylesheets scope their rules to one theme
+    if theme.len > 0:
+      bodyClass = (bodyClass & " theme-" & theme).strip()
     body(class=bodyClass):
-      renderNavbar(cfg, req, rss, twitterLink)
+      if isTheme(theme):
+        renderXLayout(cfg, prefs, req.path, rss, twitterLink,
+                      "/settings?referer=" & encodeUrl(settingsReferer(req)), body)
+      else:
+        renderNavbar(cfg, req, rss, twitterLink)
 
-      tdiv(class="container"):
-        body
+        tdiv(class="container"):
+          body
 
   if zh: translatePage(node)
   result = doctype & $node
@@ -154,4 +176,6 @@ proc renderMain*(body: VNode; req: Request; cfg: Config; prefs=defaultPrefs;
 proc renderError*(error: string): VNode =
   buildHtml(tdiv(class="panel-container")):
     tdiv(class="error-panel"):
-      span: verbatim error
+      span(class="error-icon"): verbatim errorIcon
+      span(class="error-text"): verbatim error
+      a(class="error-home", href="/"): text "Back to home"
