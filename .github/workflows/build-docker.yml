@@ -1,18 +1,16 @@
 name: Docker
 
-# On every push to master and on version tags: run the tests, build the image
-# for both architectures, smoke test it, then publish it to the GitHub Container
-# Registry as ghcr.io/<owner>/<repo>. Pull requests only build and test.
+# A release is made by pushing a version tag (git tag v1.2.3 && git push origin
+# v1.2.3): run the tests, build the image for both architectures, smoke test it,
+# then publish it to the GitHub Container Registry as ghcr.io/<owner>/<repo>.
+# Pushes to master do NOT run this workflow (run-tests.yml covers them), so
+# nothing is published between releases. To publish the current master without
+# a tag, start this workflow by hand (Actions -> Docker -> Run workflow).
+# Pull requests only build and test.
 on:
   push:
-    branches:
-      - master
     tags:
       - "v*"
-    paths-ignore:
-      - "*.md"
-      - "docs/**"
-      - "skills/**"
   pull_request:
     paths:
       - "Dockerfile"
@@ -248,15 +246,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # latest on the default branch, the version on a v* tag, and always the
-      # commit, so a specific build can be pulled back
+      # the version on a v* tag (and latest, unless it is a pre-release such as
+      # v1.2.0-rc1), and always the commit, so a specific build can be pulled back.
+      # A manual run on the default branch publishes latest, master and the commit.
       - name: Tags
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') || github.ref_name == github.event.repository.default_branch }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short

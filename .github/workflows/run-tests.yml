@@ -1,13 +1,14 @@
 name: Tests
 
 on:
-  # branches other than master, plus pull requests. master runs the same steps
-  # as part of build-docker.yml, so the image is never built without them.
+  # every branch including master, plus pull requests. Pushes to master do not
+  # build or publish an image; that only happens for v* tags (build-docker.yml),
+  # which run the tests themselves.
   push:
     paths-ignore:
       - "*.md"
-    branches-ignore:
-      - master
+    branches:
+      - "**"
   pull_request:
     paths-ignore:
       - "*.md"

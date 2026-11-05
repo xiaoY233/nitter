@@ -42,7 +42,7 @@ Seven read-only tools, available through `POST /mcp` and `/api/v1/...`:
 - **Disabled by default.** Without `[Api] enabled = true` the server behaves as
   the plain Nitter web front-end.
 - **Prebuilt images.** CI publishes a multi-arch image to
-  `ghcr.io/xiaoy233/nitter` on every push to `master` and on version tags; it
+  `ghcr.io/xiaoy233/nitter` when a version tag (`v*`) is pushed; it
   may need to be made public once (see
   [docs/deployment.md](docs/deployment.md#published-images)).
 

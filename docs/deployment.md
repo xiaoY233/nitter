@@ -171,8 +171,8 @@ Two GitHub Actions workflows live in `.github/workflows`:
 
 | Workflow | Runs on | What it does |
 |---|---|---|
-| `run-tests.yml` | Pushes to other branches, pull requests | Builds with Nim 2.0 and 2.2, runs the unit tests, renders the CSS and the about page |
-| `build-docker.yml` | Pushes to `master` and to `v*` tags, pull requests that touch the build, manual | Tests, builds the image for amd64 and arm64, smoke tests the amd64 image against a Redis service with `/.health`, then publishes to the GitHub Container Registry |
+| `run-tests.yml` | Pushes to any branch (including `master`), pull requests | Builds with Nim 2.0 and 2.2, runs the unit tests, renders the CSS and the about page |
+| `build-docker.yml` | Pushes of `v*` tags, pull requests that touch the build, manual | Tests, builds the image for amd64 and arm64, smoke tests the amd64 image against a Redis service with `/.health`, then publishes to the GitHub Container Registry |
 
 ### Published images
 
@@ -181,8 +181,20 @@ there is no secret to configure:
 
 | Trigger | Tags |
 |---|---|
-| Push to `master` | `latest`, `master`, `sha-<commit>` |
-| Push of a `v1.2.3` tag | `1.2.3`, `1.2`, `sha-<commit>` |
+| Push of a `v1.2.3` tag | `1.2.3`, `1.2`, `latest`, `sha-<commit>` |
+| Push of a pre-release tag such as `v1.3.0-rc1` | `1.3.0-rc1`, `sha-<commit>` (no `latest`, no `1.3`) |
+| Manual run on `master` | `latest`, `master`, `sha-<commit>` |
+
+Pushing to `master` does **not** publish an image, it only runs the tests. To
+release, tag the commit and push the tag:
+
+```sh
+git tag v1.2.3 && git push origin v1.2.3
+```
+
+Keep `version` in `nitter.nimble` (and `serverVersion` in `src/tools/core.nim`)
+equal to the tag. To publish the current `master` without a tag, run the
+*Docker* workflow by hand from the Actions tab.
 
 The manifest covers `linux/amd64` and `linux/arm64`, so one pull serves either
 architecture. Pull requests build and test but never publish.
