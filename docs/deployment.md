@@ -150,8 +150,9 @@ Replace `<secret>` with the part of the token after the colon.
 ```sh
 B=http://127.0.0.1:8080; A="Authorization: Bearer <secret>"
 
-curl -s $B/api/v1/health                                     # {"status":"ok",...}
-curl -s -o /dev/null -w "%{http_code}\n" $B/api/v1/tools     # 401 without a token
+curl -s $B/api/v1/health                                     # {"status":"ok","version":...}
+curl -s -o /dev/null -w "%{http_code}\n" $B/api/v1/whoami    # 401 without a token
+curl -s -H "$A" $B/api/v1/whoami                             # {"principal":...}
 curl -s -H "$A" "$B/api/v1/users/jack?format=markdown"       # live data
 curl -s -H "$A" -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' $B/mcp | head -c 300

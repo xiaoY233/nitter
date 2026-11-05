@@ -111,7 +111,19 @@ proc healthReply*(cfg: Config): Reply =
   let status = if total == 0: "no_sessions" elif limited >= total: "all_limited" else: "ok"
   let code = if status == "ok": Http200 else: Http503
   reply(code, baseHeaders(jsonType),
-   $(%*{"status": status, "sessions": {"total": total, "limited": limited}}))
+   $(%*{"status": status, "version": serverVersion, "api_version": apiVersion,
+        "sessions": {"total": total, "limited": limited}}))
+
+proc whoamiReply*(cfg: Config; req: Request): Reply =
+  ## Validates the caller's token without touching the upstream or spending
+  ## rate-limit budget. Anonymous access is reported, not hidden behind a 200.
+  try:
+    let principal = authorize(cfg, req)
+    reply(Http200, baseHeaders(jsonType),
+          $(%*{"principal": principal, "anonymous": principal == "anonymous",
+               "rate_limit_per_min": cfg.apiRpm}))
+  except CatchableError as e:
+    errorReply(toToolError(e))
 
 template send*(r: Reply) =
   let apiReply = r
@@ -122,6 +134,10 @@ proc createApiRouter*(cfg: Config) =
     get "/api/v1/health":
       cond cfg.apiEnabled
       send healthReply(cfg)
+
+    get "/api/v1/whoami":
+      cond cfg.apiEnabled
+      send whoamiReply(cfg, request)
 
     get "/api/v1/openapi.json":
       cond cfg.apiEnabled

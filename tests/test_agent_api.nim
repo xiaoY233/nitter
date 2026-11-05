@@ -3,7 +3,7 @@
 # Run: nim c -r tests/test_agent_api.nim
 import std/[unittest, json, strutils, options, times, asyncdispatch, sequtils]
 import ../src/[types, config, apiauth]
-import ../src/tools/[errors, validate, schema, dto, core, registry, mcp, service]
+import ../src/tools/[errors, validate, schema, dto, core, registry, mcp, service, outschema, openapi, impl]
 
 proc mkCfg(tokens = "alice:s3cret,bob:other"; rpm = 3; conc = 2): Config =
   Config(hostname: "nitter.local", useHttps: false, apiEnabled: true,
@@ -314,3 +314,138 @@ suite "retweet filtering in search":
       return Timeline(content: @[@[tw(3)]], bottom: "")
     let r = waitFor collect(f, "", 1, 5, Query(), false, dropRetweets = true)
     check r.tweets.mapIt(it.id) == @[3'i64] and calls == 2
+
+suite "output schemas":
+  let defs = components()
+
+  proc typeOk(t: string; v: JsonNode): bool =
+    case t
+    of "string": v.kind == JString
+    of "integer": v.kind == JInt
+    of "boolean": v.kind == JBool
+    of "null": v.kind == JNull
+    of "object": v.kind == JObject
+    of "array": v.kind == JArray
+    else: false
+
+  proc violations(sch, v: JsonNode; path: string): seq[string] =
+    ## Strict on purpose: a field the schema does not declare is a violation,
+    ## so adding a field to a DTO without documenting it fails this test.
+    if sch.kind != JObject: return @[path & ": schema is not an object: " & $sch]
+    if sch.hasKey("$ref"):
+      return violations(defs[sch["$ref"].getStr.split('/')[^1]], v, path)
+    let ts = if sch{"type"}.kind == JArray: sch["type"].getElems.mapIt(it.getStr)
+             else: @[sch{"type"}.getStr]
+    if not ts.anyIt(typeOk(it, v)):
+      return @[path & ": expected " & ts.join("|") & ", got " & $v.kind]
+    if sch.hasKey("enum") and v notin sch["enum"].getElems:
+      result.add path & ": " & $v & " not in enum"
+    if v.kind == JObject:
+      if sch.hasKey("required"):
+        for r in sch["required"].getElems:
+          if not v.hasKey(r.getStr): result.add path & ": missing " & r.getStr
+      let props = if sch.hasKey("properties"): sch["properties"] else: newJObject()
+      for k, child in v.pairs:
+        if not props.hasKey(k): result.add path & ": undeclared field " & k
+        else: result.add violations(props[k], child, path & "." & k)
+    elif v.kind == JArray:
+      for i, e in v.getElems: result.add violations(sch["items"], e, path & "[" & $i & "]")
+
+  let cfg = Config(hostname: "nitter.local", useHttps: false)
+  let user = User(id: "12", username: "jack", fullname: "jack", verifiedType: blue,
+                  followers: 6_000_000, joinDate: dateTime(2006, mMar, 21, zone = utc()),
+                  banner: "banners/1", pinnedTweet: 7, bio: "hi")
+  proc mk(id: int64): Tweet =
+    Tweet(id: id, user: user, text: "hi", available: true,
+          time: dateTime(2024, mJan, 2, 3, 4, 5, zone = utc()),
+          stats: TweetStats(likes: 15, views: 0), threadId: 1, replyId: 2,
+          reply: @["a"], pinned: true, location: "x", note: "n", isAI: true)
+  proc fullTweet(): Tweet =
+    result = mk(10)
+    result.media = @[
+      Media(kind: photoMedia, photo: Photo(url: "media/a.jpg", altText: "alt")),
+      Media(kind: videoMedia, video: Video(available: true, durationMs: 5, thumb: "t",
+        title: "v", variants: @[VideoVariant(contentType: mp4, url: "https://v/1.mp4", bitrate: 1),
+                                VideoVariant(contentType: VideoType.m3u8, url: "https://v/1.m3u8")])),
+      Media(kind: gifMedia, gif: Gif(url: "g.mp4", thumb: "g.jpg", altText: "g"))]
+    result.poll = some Poll(options: @["a", "b"], values: @[1, 2], votes: 3, status: "open")
+    result.card = some Card(kind: CardKind.summary, title: "t", text: "d",
+                            url: "https://e.com", dest: "e.com", image: "card/i.jpg")
+    result.articlePreview = some ArticlePreview(title: "t", previewText: "p", tweetId: 4)
+    result.quote = some mk(11)
+
+  proc check(tool: string; data: JsonNode) =
+    let v = violations(dataSchema(tool), data, tool)
+    checkpoint(v.join("\n"))
+    check v.len == 0
+
+  test "tweet with every optional part":
+    check("get_tweet", tweetDto(fullTweet(), cfg))
+  test "minimal, unavailable and retweeted tweets":
+    check("get_tweet", tweetDto(mk(1), cfg))
+    check("get_tweet", tweetDto(Tweet(id: 5, available: false, tombstone: "gone", user: user), cfg))
+    var rt = mk(2)
+    rt.retweet = some mk(1)
+    check("get_tweet", tweetDto(rt, cfg))
+  test "users, including unknown counters and about":
+    var d = userDto(user, cfg)
+    d["about"] = aboutDto(AccountInfo(username: "jack", basedIn: "US", source: "s",
+                                      usernameChanges: 1, isIdentityVerified: true,
+                                      affiliateLabel: "x"))
+    check("get_user", d)
+    check("get_user", userDto(User(id: "9", username: "x", fullname: "X"), cfg))
+  test "paged tools":
+    let items = tweetsDto(@[fullTweet(), mk(3)], cfg)
+    var t = page(items, "cur", true)
+    t["user"] = %*{"username": "jack", "name": "jack"}
+    t["tab"] = % "posts"
+    check("get_user_timeline", t)
+    var s = page(items, "", false)
+    s["query"] = % "q"
+    check("search_tweets", s)
+    var u = page(%*[userDto(user, cfg)], "c", true)
+    check("search_users", u)
+    u["user"] = % "jack"
+    u["kind"] = % "followers"
+    check("get_user_connections", u)
+  test "thread":
+    check("get_thread", %*{"tweet": tweetDto(fullTweet(), cfg),
+      "ancestors": tweetsDto(@[mk(1)], cfg), "continuation": [],
+      "replies": [tweetsDto(@[mk(3)], cfg)], "next_cursor": nil, "has_more": false,
+      "replies_omitted": 2})
+  test "validator catches drift":
+    var d = tweetDto(mk(1), cfg)
+    d["surprise"] = % 1
+    check violations(dataSchema("get_tweet"), d, "t").len == 1
+    d.delete("surprise")
+    d["id"] = % 1
+    check violations(dataSchema("get_tweet"), d, "t").len == 1
+  test "every registered tool has a schema, and OpenAPI uses it":
+    let doc = openApiDoc("http://x")
+    let schemas = doc["components"]["schemas"]
+    proc refs(n: JsonNode; found: var seq[string]) =
+      if n.kind == JObject:
+        for k, v in n:
+          if k == "$ref": found.add v.getStr
+          else: refs(v, found)
+      elif n.kind == JArray:
+        for v in n: refs(v, found)
+    for t in tools:
+      let env = doc["paths"][t.rest]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+      check env["required"].getElems.len == 2
+      let want = parseJson(($dataSchema(t.name)).replace("#/$defs/", "#/components/schemas/"))
+      check env["properties"]["data"] == want
+    var found: seq[string]
+    refs(doc, found)
+    check found.len > 0
+    for r in found:
+      check r.startsWith("#/components/schemas/")
+      check schemas.hasKey(r.split('/')[^1])
+    check ($doc).count("#/$defs/") == 0
+    check doc["paths"].hasKey("/health") and doc["paths"].hasKey("/whoami")
+    check doc["info"]["version"].getStr == serverVersion
+
+suite "versions":
+  const nimble = staticRead("../nitter.nimble")
+  test "serverVersion matches nitter.nimble":
+    check "version       = \"" & serverVersion & "\"" in nimble

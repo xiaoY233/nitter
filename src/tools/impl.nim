@@ -12,7 +12,7 @@ type TimelineFetcher* = proc (cursor: string): Future[Timeline] {.closure.}
 
 proc nowIso(): string = now().utc.format("yyyy-MM-dd'T'HH:mm:ss'Z'")
 
-proc page(items: JsonNode; next: string; more: bool): JsonNode =
+proc page*(items: JsonNode; next: string; more: bool): JsonNode =
   %*{"items": items, "next_cursor": (if more and next.len > 0: % next else: newJNull()),
      "has_more": more and next.len > 0}
 

@@ -33,7 +33,24 @@ The same seven tools are served over REST and MCP. The registry in
 | `get_user_connections` | `GET /api/v1/users/{username}/connections?kind=followers\|following` | Follower lists |
 
 Also: `POST /api/v1/tools/{name}` (JSON body), `GET /api/v1/tools`,
-`GET /api/v1/openapi.json`, `GET /api/v1/health`, `GET /llms.txt`.
+`GET /api/v1/openapi.json`, `GET /api/v1/health`, `GET /api/v1/whoami`, `GET /llms.txt`.
+
+Compatibility and token checks:
+- `GET /api/v1/health` needs no token and returns
+  `{"status", "version", "api_version", "sessions"}`. Check `api_version` (`"v1"`)
+  for compatibility; `version` is the software release. A 503 (`no_sessions`,
+  `all_limited`) still carries the full body.
+- `GET /api/v1/whoami` validates a token: 200 `{"principal", "anonymous",
+  "rate_limit_per_min"}`, or 401. It does not use the upstream or the rate-limit
+  budget. With `allowAnonymous = true`, a request without a token succeeds with
+  `"anonymous": true`, so check that field.
+- Response bodies are described in `GET /api/v1/openapi.json`: each operation's
+  200 response is `{data, meta}` with `data` referencing `User`, `Tweet` and
+  the other schemas under `components.schemas`. A test validates real DTO
+  output against them. Objects are open: new optional fields can appear, and
+  only the listed `required` fields are guaranteed. Unknown numbers are `null`,
+  never `0`. MCP `tools/list` has no `outputSchema`: the spec would then require
+  `structuredContent` on every call, but the default MCP format is markdown.
 
 Conventions:
 - ids are strings, times ISO-8601 UTC.
