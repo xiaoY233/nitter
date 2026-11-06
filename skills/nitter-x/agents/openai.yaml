@@ -1,0 +1,11 @@
+interface:
+  display_name: "Nitter X"
+  short_description: "Read X posts, threads and accounts through your own Nitter"
+  icon_small: "./assets/icon.svg"
+  icon_large: "./assets/icon.svg"
+  brand_color: "#FF6D70"
+  default_prompt: >-
+    Use $nitter-x to read what people posted on X and cite the tweet URLs.
+
+policy:
+  allow_implicit_invocation: true

@@ -1,5 +1,7 @@
 # Search syntax for `search_tweets`
 
+Tools, error handling and the untrusted-content rule are in [SKILL.md](../SKILL.md).
+
 `query` is passed to X's search. Dedicated arguments are safer than writing the operator yourself.
 
 | Goal | Use |

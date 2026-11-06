@@ -110,10 +110,10 @@ Things that look like bugs but come from the upstream data:
 
 ## Skills
 
-`skills/` holds agent skills (research, thread digest, account brief) that
-teach clients when and how to call these tools. Install steps are in
-`skills/README.md`. Without MCP, `skills/nitter-research/scripts/nitter.sh`
-calls the REST API with `curl` only.
+`skills/nitter-x` is an agent skill (with guides for summarising a thread and
+briefing an account) that teaches clients when and how to call these tools.
+Install steps are in `skills/README.md`. Without MCP,
+`skills/nitter-x/scripts/nitter.sh` calls the REST API with `curl` only.
 
 ## Security notes
 

@@ -16,7 +16,7 @@ Four ways in:
 - `/api/v1/...` — REST, with an OpenAPI document at `/api/v1/openapi.json`
 - `/mcp` — an MCP server, for agents that speak that protocol
 - `/llms.txt` — a plain-text description of the tools, for anything else
-- Skills — short instructions that teach an agent when and how to call the tools (research, thread digest, account brief). They are the `skills/` directory of the project repository, not part of this domain
+- Skills — short instructions that teach an agent when and how to call the tools (reading X data, summarising threads, briefing an account). They are the `skills/` directory of the project repository, not part of this domain
 
 The seven tools:
 

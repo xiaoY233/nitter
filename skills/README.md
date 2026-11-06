@@ -5,11 +5,10 @@ come from the MCP server (`/mcp`) or the REST API; see `docs/agent-api.md`.
 
 | Skill | Use it for |
 |---|---|
-| `nitter-research` | Core skill: which tool to call, paging, error handling, untrusted-content rules, search syntax, and a `curl` fallback script |
-| `nitter-thread-digest` | Summarise a tweet thread or discussion |
-| `nitter-account-brief` | Brief on an account and its recent topics |
+| `nitter-x` | Reading public X data: which tool to call, paging and quota, error handling, untrusted-content rules and search syntax. Includes guides for summarising a thread and briefing an account, and a `curl` fallback script |
 
-The two task skills depend on `nitter-research`, so install all three together.
+One skill, so there is a single thing to install. The task guides are loaded
+only when the request needs them (`references/`).
 
 ## Install
 
@@ -24,11 +23,9 @@ skills root your client scans:
 | pi and other agents | `~/.agents/skills/` is the shared convention; check your client's docs | |
 
 ```sh
-# example: user-wide, symlinked so `git pull` updates them
+# example: user-wide, symlinked so `git pull` updates it
 mkdir -p ~/.agents/skills
-for s in nitter-research nitter-thread-digest nitter-account-brief; do
-  ln -sfn "$PWD/skills/$s" ~/.agents/skills/$s
-done
+ln -sfn "$PWD/skills/nitter-x" ~/.agents/skills/nitter-x
 ```
 
 Paths for Claude Code and Codex follow their documentation as of writing;
@@ -43,15 +40,15 @@ Pick one:
   `Authorization: Bearer <token>`, or use the stdio bridge in
   `clients/mcp-stdio`.
 - **No MCP**: set `NITTER_BASE_URL` and `NITTER_API_TOKEN` in the agent's
-  environment. `nitter-research/scripts/nitter.sh` then works from any shell
+  environment. `nitter-x/scripts/nitter.sh` then works from any shell
   (needs only `curl`). The skill falls back to it automatically.
 
 ## Test a skill
 
 Ask the agent, with the tools connected:
 
-- "Summarise https://x.com/jack/status/20" (should load `nitter-thread-digest`)
-- "What has @nim_lang posted about recently?" (`nitter-account-brief`)
-- "Find tweets mentioning 'zig' from @ziglang since 2025-01-01" (`nitter-research`)
+- "Summarise https://x.com/jack/status/20" (should read `references/thread-digest.md`)
+- "What has @nim_lang posted about recently?" (`references/account-brief.md`)
+- "Find tweets mentioning 'zig' from @ziglang since 2025-01-01" (`search_tweets`)
 
 A good run calls few tools, cites tweet URLs, and reports how much it read.
