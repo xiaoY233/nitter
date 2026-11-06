@@ -29,7 +29,51 @@ body.theme-x {
     padding-top: 16px;
     font-size: 100%;
   }
-  .error-panel { margin-top: 0; }
+  // errors: a plain card, not a block of the error colour. The colour is only
+  // the icon, so the text stays readable in every theme (the TikTok pink made
+  // dark text and the accent-coloured links unreadable).
+  .error-panel {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 4px 14px;
+    margin: 0 auto;
+    padding: 16px;
+    box-sizing: border-box;
+    text-align: left;
+    background: var(--bg_panel);
+    color: var(--fg_color);
+    border: 1px solid var(--border_grey);
+    border-radius: var(--x_radius);
+    box-shadow: none;
+
+    .error-icon {
+      grid-row: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      color: var(--error_red);
+      background: color-mix(in srgb, var(--error_red) 14%, transparent);
+      .x-svg { width: 22px; height: 22px; color: inherit; }
+    }
+    .error-text {
+      align-self: center;
+      min-width: 0;
+      font-size: 15px;
+      line-height: 22px;
+      font-weight: 500;
+      overflow-wrap: anywhere;
+      a { color: var(--accent); text-decoration: underline; }
+    }
+    .error-home {
+      @include ui-button(outline, sm);
+      justify-self: start;
+      margin-top: 10px;
+    }
+  }
   .x-nav .icon-info { margin: 0; }
 
   // upstream sizes these with width: 100% plus padding; keep them inside the column
