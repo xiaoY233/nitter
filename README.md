@@ -114,6 +114,7 @@ and the REST API are covered in [docs/agent-api.md](docs/agent-api.md).
 | [docs/web-ui.md](docs/web-ui.md) | The X theme and the colour themes, keyboard shortcuts, the Chinese interface |
 | [docs/ui-system.md](docs/ui-system.md) | Design tokens and components, for people changing the web pages |
 | [skills/README.md](skills/README.md) | Installing the agent Skills |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 
 ## Notes
 

@@ -4,7 +4,7 @@ import asyncdispatch, json
 import ../types
 
 const
-  serverVersion* = "1.0.0"  ## Software release; keep equal to `version` in nitter.nimble.
+  serverVersion* = "1.1.0"  ## Software release; keep equal to `version` in nitter.nimble.
   apiVersion* = "v1"        ## Path prefix generation. Clients check compatibility on this.
 
 type

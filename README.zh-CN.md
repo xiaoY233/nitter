@@ -104,6 +104,7 @@ claude mcp add --transport http nitter http://<host>:8080/mcp \
 | [docs/web-ui.md](docs/web-ui.md) | X 主题与配色主题、键盘快捷键、中文界面 |
 | [docs/ui-system.md](docs/ui-system.md) | 设计令牌与组件，供修改网页界面的人参考 |
 | [skills/README.md](skills/README.md) | 安装 Agent Skills |
+| [CHANGELOG.md](CHANGELOG.md) | 每个版本的变化（英文） |
 
 ## 注意事项
 
