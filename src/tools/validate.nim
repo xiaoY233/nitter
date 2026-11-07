@@ -9,6 +9,7 @@ const
                    "login", "about", "pic", "share", "notifications", "messages"]
   maxCursorLen* = 2000
   maxQueryLen* = 500
+  maxFromHandles* = 10
 
 proc isUsername*(s: string): bool =
   s.len in 1 .. 15 and s.allCharsInSet({'a'..'z', 'A'..'Z', '0'..'9', '_'})
@@ -57,22 +58,49 @@ proc parseTweetRef*(raw: string): string =
                    "like https://x.com/<user>/status/<id>")
 
 proc validateCursor*(c: string): string =
+  ## Cursors are opaque tokens the upstream hands out: base64url text, a
+  ## `maxid:<n>` marker (our own date-bounded search paging) or `<id>|<n>`
+  ## (follower lists). A value with anything else in it was not issued by this
+  ## server, and the upstream answers one with an empty page that looks exactly
+  ## like the end of the results, so it is refused here.
   if c.len > maxCursorLen:
     raise invalidArg("cursor is too long")
   for ch in c:
     if ch < ' ' or ch == '\x7f':
       raise invalidArg("cursor contains control characters")
+    if ch notin {'a'..'z', 'A'..'Z', '0'..'9', '_', '-', '=', '|', ':', '+', '/'}:
+      raise invalidArg("cursor is not valid: pass back the next_cursor value " &
+                       "from a previous response unchanged")
   c
 
+proc daysInMonth(y, m: int): int =
+  case m
+  of 2: (if (y mod 4 == 0 and y mod 100 != 0) or y mod 400 == 0: 29 else: 28)
+  of 4, 6, 9, 11: 30
+  else: 31
+
 proc validateDate*(s, name: string): string =
-  ## YYYY-MM-DD or empty.
+  ## YYYY-MM-DD or empty. The day is checked against the real calendar: X
+  ## answers an impossible date such as 2024-02-31 with an empty result.
   if s.len == 0: return ""
   let ok = s.len == 10 and s[4] == '-' and s[7] == '-' and
            s[0..3].allCharsInSet(Digits) and s[5..6].allCharsInSet(Digits) and
            s[8..9].allCharsInSet(Digits)
   if not ok:
     raise invalidArg(name & " must be a date formatted YYYY-MM-DD")
-  let (m, d) = (parseInt(s[5..6]), parseInt(s[8..9]))
-  if m notin 1 .. 12 or d notin 1 .. 31:
+  let (y, m, d) = (parseInt(s[0..3]), parseInt(s[5..6]), parseInt(s[8..9]))
+  if m notin 1 .. 12 or d notin 1 .. daysInMonth(y, m):
     raise invalidArg(name & " is not a valid date")
+  s
+
+proc validateDateRange*(since, until: string) =
+  ## Both are already validated YYYY-MM-DD, so string order is date order.
+  if since.len > 0 and until.len > 0 and since >= until:
+    raise invalidArg("since (" & since & ") must be earlier than until (" & until &
+                     "); until is exclusive")
+
+proc validateMinLikes*(s: string): string =
+  ## A non-numeric value used to be dropped silently, which widened the search.
+  if s.len > 0 and not s.allCharsInSet(Digits):
+    raise invalidArg("min_likes must be a whole number of 0 or more")
   s

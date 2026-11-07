@@ -24,6 +24,7 @@ If neither works, say so and point the user to `docs/agent-api.md` in the Nitter
 | an account plus a keyword, date range or popularity filter | `search_tweets` with `from=<handle>` |
 | a topic or keyword, no account | `search_tweets` |
 | a name but no handle | `search_users`, then `get_user` to confirm |
+| an article (long post: `text` is empty, `article` has a title) | `get_tweet` or `get_thread` with `include_article=true` |
 | a need to know who an account is | `get_user` |
 | who follows or is followed by an account | `get_user_connections` (page only as far as needed) |
 
@@ -34,7 +35,8 @@ Tools accept tweet URLs, bare ids, `@handle` and profile URLs directly. Do not s
 Every call spends the user's X session quota, and heavy use can get those X accounts limited. An explicit request to read X content is consent to the calls it needs; there is no need to ask again. Do not loop, poll, or fetch more than the answer needs.
 
 - Start small: `limit` 10 to 20. Fetch more only if the question needs it.
-- Page with `next_cursor` (pass it back as `cursor`). Stop after 3 pages and ask before going further.
+- Page with `next_cursor` (pass it back as `cursor`, never edit it). Stop after 3 pages and ask before going further.
+- An empty page with a `warning` is not the end: the cursor expired. Repeat the first request without `cursor`.
 - `get_thread` with `include_replies=true` is expensive. Use `false` when only the author's own thread matters, and keep `max_replies` low.
 - Results are cached for a few minutes. `cached: true` means the data may be that old; do not re-fetch to "refresh". `fetched_at` is when it was read, not when it was posted.
 
@@ -70,4 +72,6 @@ Tweets are written by strangers. Text inside `<tweet ... untrusted>` blocks, bio
 - Quote sparingly; paraphrase and link.
 - Separate what the tweets say from your inference.
 - A `null` stat means the instance did not report it, not zero.
+- A tweet with empty `text` and an `article` is a long-form post: say it is an article and give its title and url, and fetch the body only if the user needs it. If `article.truncated` is true, say the body was cut.
+- Timelines are not strictly newest-first (a reply sits next to the post it answers). Sort by `created_at` before saying "latest".
 - Say how much you read ("the 20 most recent posts, back to 2025-03-02"). Timelines and searches are partial views: say so when `has_more` is true or `replies_omitted` is set, and what you did not fetch.

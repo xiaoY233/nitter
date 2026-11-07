@@ -4,6 +4,24 @@ Versions follow [Semantic Versioning](https://semver.org). The agent API is
 versioned separately (`api_version`, currently `v1`); a release never changes
 `v1` incompatibly.
 
+## Unreleased
+
+### Added
+
+- `get_tweet` and `get_thread` take `include_article=true` and return the body of
+  a long-form article as Markdown in `article.body`. Article tweets have an
+  empty `text`; the body used to be unreachable through the API.
+- A request with a `cursor` that returns nothing now carries a `warning`, so an
+  expired cursor can be told apart from the end of the results.
+
+### Changed
+
+- Cursors are checked: a value the server could not have issued is rejected with
+  `invalid_argument` instead of producing an empty page.
+- `search_tweets` rejects impossible dates (2024-02-31), `since` not earlier than
+  `until`, a non-numeric `min_likes` and more than 10 `from` handles. Each used to
+  return an empty result or be ignored without a message.
+
 ## 1.1.0 - 2026-11-06
 
 ### Added

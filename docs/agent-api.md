@@ -55,7 +55,9 @@ Compatibility and token checks:
 Conventions:
 - ids are strings, times ISO-8601 UTC.
 - `format=markdown` (compact, MCP default) or `format=json` (REST default).
-- Lists return `{items, next_cursor, has_more}`; pass `next_cursor` as `cursor`.
+- Lists return `{items, next_cursor, has_more}`; pass `next_cursor` as `cursor`
+  unchanged. A cursor that was not issued by the server (anything but letters,
+  digits and `_-=|:+/`) is rejected with `invalid_argument`.
 - `limit` is a minimum: whole upstream pages are fetched until it is met (at most `maxPages`).
 - Errors: `{"error": {"code", "message", "retryable", "retry_after_s"}}`. Codes:
   `invalid_argument`, `unauthorized`, `forbidden_origin`, `not_found`, `user_suspended`,
@@ -104,6 +106,28 @@ Things that look like bugs but come from the upstream data:
   returned; `replies_omitted` says how many reply threads of this page were left
   out, and `next_cursor` continues with the following page. Raise `max_replies`
   to see the omitted ones.
+- **Long-form articles have no `text`.** X stores the body in a separate document, so
+  `text` is `""` and the tweet carries `article: {title, preview, url}`. In search
+  results and timelines that is all you get (an article tweet is easy to spot
+  by its empty `text`). `get_tweet` and `get_thread` take `include_article=true`
+  to add `article.body` (Markdown, headings, lists, quotes and code kept; images,
+  videos and embedded tweets become one-line placeholders) at the cost of one
+  extra upstream request. The body is cut at 60000 characters with
+  `article.truncated: true`; `article.body_unavailable: true` means it could not
+  be read. The body is third-party content like any tweet.
+- **An empty page after a cursor is ambiguous.** X answers an expired or altered
+  cursor like the end of the list: no items, `has_more: false`. When a request
+  carried a `cursor` and returned nothing, the response has a `warning`; repeat
+  the original request without `cursor` to start again. Without a `warning`, an
+  empty page is the real end.
+- **Timelines are not strictly newest-first.** X returns a reply together with
+  the post it answers, so a thread can appear out of date order, as it does on
+  the website. Sort by `created_at` when you need exact order. A pinned tweet is
+  first and has `pinned: true`.
+- **`search_tweets` input is checked, not guessed.** `since` and `until` must be
+  real calendar dates and `since` must be earlier than `until` (which is
+  exclusive); `min_likes` must be digits; `from` takes at most 10 handles. X
+  would answer any of these mistakes with an empty result.
 - **A full URL in the REST path** must be percent-encoded
   (`/tweets/https%3A%2F%2Fx.com%2Fjack%2Fstatus%2F20`). `POST /api/v1/tools/get_tweet`
   and MCP take the URL as a plain argument.

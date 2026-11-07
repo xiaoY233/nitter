@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Offline unit tests for the agent API (no network, no Redis).
 # Run: nim c -r tests/test_agent_api.nim
-import std/[unittest, json, strutils, options, times, asyncdispatch, sequtils]
+import std/[unittest, json, strutils, options, times, asyncdispatch, sequtils, tables]
 import ../src/[types, config, apiauth]
 import ../src/tools/[errors, validate, schema, dto, core, registry, mcp, service, outschema, openapi, impl]
 
@@ -32,6 +32,36 @@ suite "validation":
       expect ToolError: discard validateDate(bad, "since")
     expect ToolError: discard validateCursor("a\nb")
     expect ToolError: discard validateCursor('x'.repeat(2001))
+
+  test "dates are checked against the calendar":
+    check validateDate("2024-02-29", "since") == "2024-02-29"
+    check validateDate("2023-12-31", "since") == "2023-12-31"
+    for bad in ["2024-02-30", "2023-02-29", "2024-02-31", "2024-04-31", "2024-06-31",
+                "2024-09-31", "2024-11-31", "1900-02-29", "2024-00-10", "2024-01-00"]:
+      checkpoint(bad)
+      expect ToolError: discard validateDate(bad, "since")
+    check validateDate("2000-02-29", "since") == "2000-02-29"      # divisible by 400
+  test "since must be earlier than until":
+    validateDateRange("", "")
+    validateDateRange("2024-01-01", "")
+    validateDateRange("", "2024-01-01")
+    validateDateRange("2024-01-01", "2024-01-02")
+    for (a, b) in [("2025-01-01", "2024-01-01"), ("2024-01-01", "2024-01-01")]:
+      expect ToolError: validateDateRange(a, b)
+  test "min_likes: digits only, anything else is an error rather than ignored":
+    check validateMinLikes("") == ""
+    check validateMinLikes("100") == "100"
+    for bad in ["-3", "1e3", "1.5", "ten", " 5", "5 "]:
+      expect ToolError: discard validateMinLikes(bad)
+
+  test "cursors: only tokens the upstream issues are accepted":
+    for ok in ["", "DAADDAABCgABHWbs0iEa4W8KAAIdYZh87pYhLQAI_-", "maxid:2105823441817705742",
+               "1881103842876434414|2118", "abc+/=="]:
+      check validateCursor(ok) == ok
+    for bad in ["!!!not-a-cursor", "has space", "a;b", "a\"b", "<x>", "é", "a?b=1", "a&b"]:
+      expect ToolError: discard validateCursor(bad)
+    try: discard validateCursor("!!!")
+    except ToolError as e: check e.code == "invalid_argument" and "next_cursor" in e.msg
 
 suite "schema":
   let s = objectSchema({"q": strProp("x", 5), "n": intProp("n", 1, 50, 20),
@@ -238,6 +268,16 @@ suite "optional arguments":
 
 import ../src/tools/impl
 
+suite "empty page with a cursor":
+  test "warns, so an expired cursor is not mistaken for the end":
+    let p = page(newJArray(), "", false, "someCursor")
+    check p["has_more"].getBool == false
+    check p["warning"].getStr == emptyCursorWarning
+  test "no warning without a cursor, or when there are results":
+    check not page(newJArray(), "", false).hasKey("warning")
+    check not page(newJArray(), "", false, "").hasKey("warning")
+    check not page(%*[{"id": "1"}], "n", true, "c").hasKey("warning")
+
 suite "pagination (fake upstream)":
   proc tw(id: int64): Tweet = Tweet(id: id, available: true, user: User(username: "u"))
   proc pageOf(ids: seq[int64]; bottom: string): Timeline =
@@ -413,6 +453,17 @@ suite "output schemas":
       "ancestors": tweetsDto(@[mk(1)], cfg), "continuation": [],
       "replies": [tweetsDto(@[mk(3)], cfg)], "next_cursor": nil, "has_more": false,
       "replies_omitted": 2})
+  test "article body fields and the cursor warning are in the schemas":
+    var d = tweetDto(Tweet(id: 1, available: true, user: User(username: "u"),
+      articlePreview: some ArticlePreview(title: "t", previewText: "p", tweetId: 1)), cfg)
+    d["article"]["body"] = % "x"
+    d["article"]["truncated"] = % false
+    check("get_tweet", d)
+    d["article"]["body_unavailable"] = % true
+    check("get_tweet", d)
+    var empty = page(newJArray(), "", false, "c")
+    empty["query"] = % "q"
+    check("search_tweets", empty)
   test "validator catches drift":
     var d = tweetDto(mk(1), cfg)
     d["surprise"] = % 1
@@ -449,3 +500,59 @@ suite "versions":
   const nimble = staticRead("../nitter.nimble")
   test "serverVersion matches nitter.nimble":
     check "version       = \"" & serverVersion & "\"" in nimble
+
+suite "article body":
+  proc para(text, kind: string; styles: seq[ArticleStyle] = @[];
+            ranges: seq[ArticleEntityRange] = @[]): ArticleParagraph =
+    ArticleParagraph(text: text, kind: kind, inlineStyles: styles, entityRanges: ranges)
+
+  proc sample(): Article =
+    result = Article(title: "T")
+    result.entities[0] = ArticleEntity(kind: "MEDIA", mediaIds: @["m"], caption: "A chart")
+    result.entities[1] = ArticleEntity(kind: "TWEET", tweetId: "99")
+    result.entities[2] = ArticleEntity(kind: "MARKDOWN", markdown: "```py\nprint(1)\n```")
+    result.entities[3] = ArticleEntity(kind: "DIVIDER")
+    result.paragraphs = @[
+      para("Title", "header-one"), para("Sub", "header-two"),
+      para("Hello bold world", "unstyled", @[ArticleStyle(offset: 6, length: 4, style: "Bold")]),
+      para("one", "ordered-list-item"), para("two", "ordered-list-item"),
+      para("point", "unordered-list-item"), para("said it", "blockquote"),
+      para("x = 1", "code-block"),
+      para(" ", "atomic", ranges = @[ArticleEntityRange(offset: 0, length: 1, key: 0)]),
+      para(" ", "atomic", ranges = @[ArticleEntityRange(offset: 0, length: 1, key: 1)]),
+      para(" ", "atomic", ranges = @[ArticleEntityRange(offset: 0, length: 1, key: 2)]),
+      para(" ", "atomic", ranges = @[ArticleEntityRange(offset: 0, length: 1, key: 3)]),
+      para("", "unstyled")]
+
+  test "headings, lists, quotes, code and placeholders become Markdown":
+    let (md, cut) = articleMarkdown(sample())
+    check not cut
+    for expected in ["# Title", "## Sub", "Hello **bold** world", "1. one", "2. two",
+                     "- point", "> said it", "```\nx = 1\n```", "[media: A chart]",
+                     "[embedded tweet 99]", "print(1)", "---"]:
+      checkpoint(expected)
+      check expected in md
+  test "ordered list numbering restarts after another block":
+    var a = Article(title: "T")
+    a.paragraphs = @[para("a", "ordered-list-item"), para("x", "unstyled"),
+                     para("b", "ordered-list-item")]
+    check articleMarkdown(a).text == "1. a\n\nx\n\n1. b"
+  test "styles use rune offsets, so multibyte text is not shifted":
+    var a = Article(title: "T")
+    a.paragraphs = @[para("你好 世界", "unstyled", @[ArticleStyle(offset: 3, length: 2, style: "Italic")])]
+    check articleMarkdown(a).text == "你好 _世界_"
+  test "out-of-range style offsets are ignored, not a crash":
+    var a = Article(title: "T")
+    a.paragraphs = @[para("abc", "unstyled", @[ArticleStyle(offset: 50, length: 5, style: "Bold"),
+                                               ArticleStyle(offset: -1, length: 2, style: "Bold"),
+                                               ArticleStyle(offset: 1, length: 99, style: "Bold")])]
+    check articleMarkdown(a).text == "a**bc**"
+  test "the size cap stops at a paragraph boundary and says so":
+    var a = Article(title: "T")
+    for i in 1 .. 10: a.paragraphs.add para("p" & $i & 'x'.repeat(100), "unstyled")
+    let (md, cut) = articleMarkdown(a, 350)
+    check cut and md.count("\n\n") == 2 and md.len <= 350
+  test "an atomic block with a missing entity is skipped":
+    var a = Article(title: "T")
+    a.paragraphs = @[para(" ", "atomic", ranges = @[ArticleEntityRange(offset: 0, length: 1, key: 7)])]
+    check articleMarkdown(a).text == ""

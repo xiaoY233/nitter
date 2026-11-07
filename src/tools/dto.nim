@@ -2,7 +2,7 @@
 ## Converts Nitter's internal objects into compact, stable, LLM-friendly DTOs
 ## and renders those DTOs as Markdown. ids are always strings (int64 loses
 ## precision in JS clients), times are ISO-8601 UTC, urls are absolute.
-import json, strutils, sequtils, options, times, algorithm
+import json, strutils, sequtils, options, times, algorithm, unicode, tables
 import std/re
 import ../[types, formatters, utils]
 
@@ -190,6 +190,69 @@ proc tweetDto*(t: Tweet; cfg: Config; depth = 0): JsonNode =
     if q.id != 0:
       result["quote"] = tweetDto(q, cfg, depth + 1)
 
+const
+  articleBodyMax* = 60_000  ## characters of Markdown returned per article
+
+proc applyInlineMd(text: string; styles: seq[ArticleStyle]): string =
+  ## Bold/italic/code ranges are offsets in runes; links are dropped to their
+  ## text because the URL list below the body already carries them.
+  if styles.len == 0: return text
+  let runes = text.toRunes
+  var marks = newSeq[tuple[open, close: string]](runes.len)
+  for sr in styles:
+    let (o, c) = case sr.style
+      of "Bold": ("**", "**")
+      of "Italic": ("_", "_")
+      of "Code": ("`", "`")
+      of "Strikethrough": ("~~", "~~")
+      else: ("", "")
+    if o.len == 0 or sr.length <= 0 or sr.offset < 0 or sr.offset >= runes.len: continue
+    let last = min(sr.offset + sr.length, runes.len) - 1
+    marks[sr.offset].open &= o
+    marks[last].close = c & marks[last].close
+  for i, r in runes:
+    result &= marks[i].open & $r & marks[i].close
+
+proc articleMarkdown*(a: Article; maxChars = articleBodyMax): tuple[text: string, truncated: bool] =
+  ## Renders an article body as Markdown: headings, lists, quotes, code blocks,
+  ## inline styles, and one-line placeholders for images, videos and embedded
+  ## tweets (their text is not part of the article).
+  var blocks: seq[string]
+  var size = 0
+  var number = 0
+  for p in a.paragraphs:
+    var line = ""
+    case p.kind
+    of "atomic":
+      if p.entityRanges.len > 0 and p.entityRanges[0].key in a.entities:
+        let e = a.entities[p.entityRanges[0].key]
+        case e.kind
+        of "MEDIA":
+          line = "[media" & (if e.caption.len > 0: ": " & e.caption else: "") & "]"
+        of "TWEET": line = "[embedded tweet " & e.tweetId & "]"
+        of "MARKDOWN": line = "```\n" & e.markdown.strip(chars = {'`', '\n'}) & "\n```"
+        of "DIVIDER": line = "---"
+        else: discard
+    else:
+      let t = applyInlineMd(p.text, p.inlineStyles)
+      line = case p.kind
+        of "header-one": "# " & t
+        of "header-two": "## " & t
+        of "header-three": "### " & t
+        of "unordered-list-item": "- " & t
+        of "ordered-list-item": (inc number; $number & ". " & t)
+        of "blockquote": "> " & t
+        of "code-block": "```\n" & p.text & "\n```"
+        else: t
+    if p.kind != "ordered-list-item": number = 0
+    if line.len == 0: continue
+    if size + line.len > maxChars:
+      result.truncated = true
+      break
+    size += line.len + 2
+    blocks.add line
+  result.text = blocks.join("\n\n")
+
 proc tweetsDto*(tweets: seq[Tweet]; cfg: Config): JsonNode =
   result = newJArray()
   for t in tweets:
@@ -200,7 +263,7 @@ proc tweetsDto*(tweets: seq[Tweet]; cfg: Config): JsonNode =
 # Tweet text is attacker-controlled. Every tweet is wrapped in an explicit
 # <tweet untrusted> block and the wrapper tag is neutralised inside the text.
 
-proc fence(text: string): string =
+proc fence*(text: string): string =
   text.replace(wrapperRe, "‹$1tweet")
 
 proc num(n: int): string =

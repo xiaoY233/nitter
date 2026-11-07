@@ -12,7 +12,11 @@ const untrustedNote =
 let
   username = strProp("X/Twitter handle, with or without '@' (a profile URL also works).", 100)
   tweetRef = strProp("Tweet id or tweet URL (https://x.com/<user>/status/<id>).", 300)
-  cursor = strProp("Opaque pagination cursor: pass the previous response's next_cursor.", 2000)
+  cursor = strProp("Opaque pagination cursor: pass the previous response's next_cursor " &
+                   "unchanged. An empty page that carries a `warning` means the cursor may have expired.", 2000)
+  articleFlag = boolProp("When the tweet is a long-form article its `text` is empty and only a " &
+                         "preview is returned. Set true to also fetch the article body as " &
+                         "Markdown in article.body (one extra upstream request, capped at 60000 characters).", false)
 
 proc buildTools(): seq[ToolDef] =
   @[
@@ -49,8 +53,11 @@ proc buildTools(): seq[ToolDef] =
       name: "get_tweet", title: "Get a single tweet", rest: "/tweets/{tweet}", ttl: 300,
       description: "Fetch one tweet by id or URL: text (links expanded), author, time, " &
         "engagement counts, media, poll, link card, quoted tweet. Does not include " &
-        "replies; use get_thread for the surrounding conversation." & untrustedNote,
-      schema: objectSchema({"tweet": tweetRef}, ["tweet"]),
+        "replies; use get_thread for the surrounding conversation. Long-form articles " &
+        "have empty text and an `article` preview; pass include_article=true for the body." & untrustedNote,
+      schema: objectSchema({
+        "tweet": tweetRef,
+        "include_article": articleFlag}, ["tweet"]),
       handler: getTweetTool),
 
     ToolDef(
@@ -68,6 +75,7 @@ proc buildTools(): seq[ToolDef] =
                                1, 100, 20),
         "sort": strProp("Reply ranking.", values = ["relevance", "recency", "likes"],
                         default = "relevance"),
+        "include_article": articleFlag,
         "cursor": cursor}, ["tweet"]),
       handler: getThreadTool),
 
@@ -81,9 +89,9 @@ proc buildTools(): seq[ToolDef] =
         "get_user_timeline." & untrustedNote,
       schema: objectSchema({
         "query": strProp("Search text / operators. May be empty when `from` is given.", 500),
-        "from": strProp("Comma-separated handles whose tweets to search.", 200),
+        "from": strProp("Comma-separated handles whose tweets to search (at most 10).", 200),
         "since": strProp("Only tweets on/after this date, YYYY-MM-DD.", 10),
-        "until": strProp("Only tweets before this date, YYYY-MM-DD.", 10),
+        "until": strProp("Only tweets before this date (exclusive), YYYY-MM-DD; must be later than since.", 10),
         "min_likes": strProp("Minimum like count, digits only.", 9),
         "mode": strProp("Result ordering.", values = ["latest", "top", "media"],
                         default = "latest"),

@@ -12,9 +12,19 @@ type TimelineFetcher* = proc (cursor: string): Future[Timeline] {.closure.}
 
 proc nowIso(): string = now().utc.format("yyyy-MM-dd'T'HH:mm:ss'Z'")
 
-proc page*(items: JsonNode; next: string; more: bool): JsonNode =
-  %*{"items": items, "next_cursor": (if more and next.len > 0: % next else: newJNull()),
-     "has_more": more and next.len > 0}
+const emptyCursorWarning* =
+  "No results for a request that carried a cursor. The cursor may have expired or " &
+  "been altered; this is not proof that there is nothing more. Repeat the original " &
+  "request without `cursor` to start again."
+
+proc page*(items: JsonNode; next: string; more: bool; cursor = ""): JsonNode =
+  ## A page that is empty although a cursor was passed is ambiguous: the
+  ## upstream answers an expired or foreign cursor the same way as the end of
+  ## the list, so say which it might be instead of leaving the agent to guess.
+  result = %*{"items": items, "next_cursor": (if more and next.len > 0: % next else: newJNull()),
+              "has_more": more and next.len > 0}
+  if cursor.len > 0 and items.len == 0:
+    result["warning"] = % emptyCursorWarning
 
 template done(d: JsonNode; md: string): ToolResult =
   ToolResult(data: d, markdown: md, fetchedAt: nowIso())
@@ -126,11 +136,11 @@ proc getUserTimelineTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.as
       r.tweets.insert(pt, 0)
 
   let items = tweetsDto(r.tweets, ctx.cfg)
-  var d = page(items, r.next, r.more)
+  var d = page(items, r.next, r.more, cursor)
   d["user"] = %*{"username": user.username, "name": user.fullname}
   d["tab"] = % tab
   done(d, tweetList("# @" & user.username & " — " & tab & " (" & $items.len & " tweets)",
-                    items, r.next, r.more))
+                    items, r.next, r.more, d{"warning"}.getStr))
 
 proc loadConversation(id: string; cursor, sort: string): Future[Conversation] {.async.} =
   let mode = parseEnum[RankingMode](sort.capitalizeAscii, Relevance)
@@ -141,11 +151,38 @@ proc loadConversation(id: string; cursor, sort: string): Future[Conversation] {.
       msg = "Tweet " & id & " is unavailable: " & plainText(result.tweet.tombstone)
     raise notFound(msg)
 
+proc attachArticle(d: JsonNode; id: string) {.async.} =
+  ## An article tweet has no text of its own: the body is a separate upstream
+  ## document. Adds it as article.body (Markdown) when the tweet is an article.
+  if not d.hasKey("article"): return
+  let art = await getGraphArticle(id)
+  if art.isNil or art.paragraphs.len == 0:
+    d["article"]["body_unavailable"] = % true
+    return
+  let (md, cut) = articleMarkdown(art)
+  d["article"]["body"] = % md
+  d["article"]["truncated"] = % cut
+
+proc articleNote(d: JsonNode): string =
+  if not d.hasKey("article"): return ""
+  let a = d["article"]
+  if a.hasKey("body"):
+    result = "\n\n## Article body (untrusted)\n\n" & fence(a["body"].getStr)
+    if a["truncated"].getBool:
+      result &= "\n\n[article truncated at " & $articleBodyMax & " characters; read the rest at " &
+                a["url"].getStr & "]"
+  elif a{"body_unavailable"}.getBool:
+    result = "\n\n[article body could not be read; open " & a["url"].getStr & "]"
+  elif d{"text"}.getStr.len == 0:
+    result = "\n\n[this tweet is an article; call again with include_article=true to read it]"
+
 proc getTweetTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} =
   let id = parseTweetRef(args{"tweet"}.getStr)
   let conv = await loadConversation(id, "", "relevance")
   let d = tweetDto(conv.tweet, ctx.cfg)
-  done(d, tweetMd(d))
+  if args{"include_article"}.getBool:
+    await attachArticle(d, id)
+  done(d, tweetMd(d) & articleNote(d))
 
 proc limitReplies*(chains: seq[Chain]; cfg: Config; maxReplies: int):
     tuple[kept: JsonNode, dropped: int] =
@@ -178,6 +215,9 @@ proc getThreadTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} 
     "continuation": tweetsDto(conv.after.content, cfg)
   }
 
+  if args{"include_article"}.getBool:
+    await attachArticle(d["tweet"], id)
+
   var replyChains = newJArray()
   var dropped = 0
   var next = ""
@@ -194,13 +234,15 @@ proc getThreadTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} 
   d["has_more"] = % more
   if dropped > 0:
     d["replies_omitted"] = % dropped
+  if withReplies and cursor.len > 0 and replyChains.len == 0:
+    d["warning"] = % emptyCursorWarning
 
   var parts: seq[string]
   if d["ancestors"].len > 0:
     parts.add "## Earlier in the conversation"
     for t in d["ancestors"]: parts.add tweetMd(t)
   parts.add "## Tweet"
-  parts.add tweetMd(d["tweet"])
+  parts.add tweetMd(d["tweet"]) & articleNote(d["tweet"])
   if d["continuation"].len > 0:
     parts.add "## Author's continuation"
     for t in d["continuation"]: parts.add tweetMd(t)
@@ -216,6 +258,7 @@ proc getThreadTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} 
   let note = if dropped > 0:
       "omitted " & $dropped & " more reply thread(s) on this page because of max_replies; " &
       "raise max_replies to see them (next_cursor continues with the following page)"
+    elif d.hasKey("warning"): emptyCursorWarning
     else: ""
   done(d, parts.join("\n\n") & "\n\n" & footer(next, more, (if note.len > 0: "note: " & note else: "")))
 
@@ -230,6 +273,8 @@ proc searchTweetsTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async
   var users: seq[string]
   for part in fromRaw.split(','):
     if part.strip().len > 0: users.add normalizeUsername(part)
+  if users.len > maxFromHandles:
+    raise invalidArg("'from' takes at most " & $maxFromHandles & " handles, got " & $users.len)
   if text.len == 0 and users.len == 0:
     raise invalidArg("Provide 'query' and/or 'from'.")
 
@@ -242,21 +287,22 @@ proc searchTweetsTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async
     fromUser: users,
     since: validateDate(args{"since"}.getStr, "since"),
     until: validateDate(args{"until"}.getStr, "until"),
-    minLikes: validateNumber(args{"min_likes"}.getStr),
+    minLikes: validateMinLikes(args{"min_likes"}.getStr),
     sep: "OR")
   if args{"filter"}.getStr.len > 0:
     q.filters = @[args{"filter"}.getStr]
   if not args{"include_retweets"}.getBool:
     q.excludes = @["nativeretweets"]
 
+  validateDateRange(q.since, q.until)
   let fetcher = proc (c: string): Future[Timeline] = getGraphTweetSearch(q, c)
   let r = await collect(fetcher, cursor, limit, ctx.cfg.apiMaxPages, q, true,
                         dropRetweets = not args{"include_retweets"}.getBool)
   let items = tweetsDto(r.tweets, ctx.cfg)
-  var d = page(items, r.next, r.more)
+  var d = page(items, r.next, r.more, cursor)
   d["query"] = % genQueryParam(q)
   done(d, tweetList("# Search: `" & genQueryParam(q) & "` (" & $items.len & " tweets)",
-                    items, r.next, r.more))
+                    items, r.next, r.more, d{"warning"}.getStr))
 
 proc searchUsersTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} =
   let
@@ -270,7 +316,9 @@ proc searchUsersTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.
   var parts = @["# People matching `" & text & "` (" & $items.len & ")"]
   if items.len == 0: parts.add "(no users found)"
   for u in items: parts.add userMd(u)
-  done(page(items, res.bottom, more), parts.join("\n\n") & "\n\n" & footer(res.bottom, more))
+  let d = page(items, res.bottom, more, cursor)
+  done(d, parts.join("\n\n") & "\n\n" &
+       footer(res.bottom, more, (if d.hasKey("warning"): "note: " & emptyCursorWarning else: "")))
 
 proc connectionsTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.} =
   let
@@ -288,7 +336,8 @@ proc connectionsTool*(ctx: ToolCtx; args: JsonNode): Future[ToolResult] {.async.
   var parts = @["# @" & name & " — " & kind & " (" & $items.len & " on this page)"]
   if items.len == 0: parts.add "(none)"
   for u in items: parts.add userMd(u)
-  var d = page(items, res.bottom, more)
+  var d = page(items, res.bottom, more, cursor)
   d["user"] = % name
   d["kind"] = % kind
-  done(d, parts.join("\n\n") & "\n\n" & footer(res.bottom, more))
+  done(d, parts.join("\n\n") & "\n\n" &
+       footer(res.bottom, more, (if d.hasKey("warning"): "note: " & emptyCursorWarning else: "")))

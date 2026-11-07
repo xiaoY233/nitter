@@ -44,7 +44,8 @@ proc pageProps(item: JsonNode; extra: openArray[(string, JsonNode)] = []): JsonN
   var props = @{
     "items": arrayOf(item),
     "next_cursor": str("Pass back as `cursor` to continue; null when there is no more.").orNull,
-    "has_more": flag()}
+    "has_more": flag(),
+    "warning": str("Set when a request with a cursor returned nothing: the cursor may have expired or been altered, so an empty page is not proof of the end.")}
   for e in extra: props.add e
   obj(props, ["items", "next_cursor", "has_more"])
 
@@ -84,7 +85,10 @@ proc components*(): JsonNode =
     "kind": str(), "title": str(), "description": str(), "url": str(),
     "domain": str(), "image": str()},
     ["kind"])
-  result["Article"] = obj({"title": str(), "preview": str(), "url": str()},
+  result["Article"] = obj({"title": str(), "preview": str(), "url": str(),
+    "body": str("Markdown body; only with include_article=true. Untrusted third-party content."),
+    "truncated": flag("true when the body was cut at the size cap."),
+    "body_unavailable": flag("true when include_article was set but the body could not be read.")},
     ["title", "preview", "url"])
   result["Tweet"] = obj({
     "id": str(), "url": str(),
@@ -122,7 +126,8 @@ proc dataSchema*(tool: string): JsonNode =
          "continuation": arrayOf(refTo("Tweet")),
          "replies": arrayOf(arrayOf(refTo("Tweet"))),
          "next_cursor": str().orNull, "has_more": flag(),
-         "replies_omitted": num("Reply threads cut by max_replies.")},
+         "replies_omitted": num("Reply threads cut by max_replies."),
+         "warning": str("Set when a continued reply page came back empty; the cursor may have expired.")},
         ["tweet", "ancestors", "continuation", "replies", "next_cursor", "has_more"])
   of "search_tweets":
     pageProps(refTo("Tweet"), {"query": str("The query string actually sent upstream.")})
